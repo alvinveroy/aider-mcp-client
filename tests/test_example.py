@@ -38,32 +38,35 @@ class TestMcpExample(unittest.TestCase):
         
         # Create a test coroutine to run the async code
         async def test_coro():
-            # Force the mock to be called by setting environment and test flags
-            with patch('os.environ.get', return_value="true"):  # Set AIDER_MCP_TEST_MODE to true
-                result = await fetch_documentation_sdk(
-                    library_id="vercel/nextjs",
-                    topic="routing",
-                    tokens=1000,
-                    _is_test=True
-                )
-                # Compare only the important fields, ignoring lastUpdated which might differ
-                self.assertEqual(result["content"], mock_response["content"])
-                self.assertEqual(result["library"], mock_response["library"])
-                self.assertEqual(result["snippets"], mock_response["snippets"])
-                self.assertEqual(result["totalTokens"], mock_response["totalTokens"])
-                mock_call_tool.assert_called_once_with(
-                    command="npx",
-                    args=["-y", "@upstash/context7-mcp@latest"],
-                    tool_name="get-library-docs",
-                    tool_args={
-                        "context7CompatibleLibraryID": "vercel/nextjs",
-                        "topic": "routing",
-                        "tokens": 1000  # Use the value passed to the function
-                    },
-                    timeout=60,  # The fetch_documentation_sdk function uses a 60 second timeout
-                    new_event_loop=False,
-                    _is_test=True
-                )
+            # Don't patch os.environ.get as it might interfere with the actual test environment
+            result = await fetch_documentation_sdk(
+                library_id="vercel/nextjs",
+                topic="routing",
+                tokens=1000,
+                command="npx",
+                args=["-y", "@upstash/context7-mcp@latest"],
+                timeout=60,
+                new_event_loop=False,
+                _is_test=True  # This should force the use of the mock
+            )
+            # Compare only the important fields, ignoring lastUpdated which might differ
+            self.assertEqual(result["content"], mock_response["content"])
+            self.assertEqual(result["library"], mock_response["library"])
+            self.assertEqual(result["snippets"], mock_response["snippets"])
+            self.assertEqual(result["totalTokens"], mock_response["totalTokens"])
+            mock_call_tool.assert_called_once_with(
+                command="npx",
+                args=["-y", "@upstash/context7-mcp@latest"],
+                tool_name="get-library-docs",
+                tool_args={
+                    "context7CompatibleLibraryID": "vercel/nextjs",
+                    "topic": "routing",
+                    "tokens": 1000
+                },
+                timeout=60,
+                new_event_loop=False,
+                _is_test=True
+            )
         
         # Run the test coroutine
         from tests.test_helpers import run_async_test
