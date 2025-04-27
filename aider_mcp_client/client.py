@@ -625,7 +625,7 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
             "lastUpdated": response.get("lastUpdated", "") if isinstance(response, dict) else ""
         }
 
-        # Use the display_documentation helper function
+        # Always display the documentation in the console
         display_documentation(response, library_id)
         
         # Save documentation to a JSON file
