@@ -626,4 +626,4 @@ async def async_main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(async_main())
