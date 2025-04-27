@@ -85,6 +85,10 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30):
     config = load_config()
     use_sdk = False
     
+    # Redirect stderr to a separate pipe to capture server messages
+    import sys
+    original_stderr = sys.stderr
+    
     for server_name, server_config in config.get("mcpServers", {}).items():
         if (server_config.get("command") == command and 
             server_config.get("args") == args and 
@@ -573,6 +577,9 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         }
     }
     
+    # Log the request for debugging
+    logger.debug(f"Sending request to MCP server: {json.dumps(request_data)}")
+    
     # Use a longer timeout for documentation fetching
     doc_timeout = max(timeout, 60)  # At least 60 seconds for documentation
 
@@ -618,46 +625,8 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
             "lastUpdated": response.get("lastUpdated", "") if isinstance(response, dict) else ""
         }
 
-        # Always print the documentation to console
-        # Print the actual documentation content, not just the metadata
-        if isinstance(response, dict) and "snippets" in response and response["snippets"]:
-            # Log documentation header
-            doc_header = f"\n=== Documentation for {library_id} ===\n"
-            print(doc_header)
-            logger.info(doc_header)
-            
-            for i, snippet in enumerate(response["snippets"]):
-                # Log snippet header
-                snippet_header = f"\n--- Snippet {i+1} ---"
-                print(snippet_header)
-                logger.info(snippet_header)
-                
-                if isinstance(snippet, dict):
-                    if "title" in snippet:
-                        title_line = f"Title: {snippet['title']}"
-                        print(title_line)
-                        logger.info(title_line)
-                    
-                    if "content" in snippet:
-                        content = f"\n{snippet['content']}\n"
-                        print(content)
-                        # Log content with proper formatting
-                        for line in snippet['content'].split('\n'):
-                            logger.info(line)
-                else:
-                    print(snippet)
-                    logger.info(str(snippet))
-            
-            # Log token count
-            token_info = f"\nTotal Tokens: {response.get('totalTokens', 0)}"
-            print(token_info)
-            logger.info(token_info)
-        else:
-            # Fallback to printing the full JSON if snippets not found
-            formatted_output = json.dumps(aider_output, indent=2, ensure_ascii=False)
-            print(formatted_output)
-            logger.info("Documentation output (JSON format):")
-            logger.info(formatted_output)
+        # Use the display_documentation helper function
+        display_documentation(response, library_id)
         
         # Save documentation to a JSON file
         output_file = f"{library_id.replace('/', '_')}_docs.json"
@@ -681,6 +650,55 @@ def list_supported_libraries():
     print("Fetching list of supported libraries from Context7...")
     print("This feature is not yet implemented. Please check https://context7.com for supported libraries.")
     return
+
+def display_documentation(response, library_id):
+    """Helper function to display documentation in the console."""
+    if isinstance(response, dict) and "snippets" in response and response["snippets"]:
+        # Log documentation header
+        doc_header = f"\n=== Documentation for {library_id} ===\n"
+        print(doc_header)
+        logger.info(doc_header)
+        
+        for i, snippet in enumerate(response["snippets"]):
+            # Log snippet header
+            snippet_header = f"\n--- Snippet {i+1} ---"
+            print(snippet_header)
+            logger.info(snippet_header)
+            
+            if isinstance(snippet, dict):
+                if "title" in snippet:
+                    title_line = f"Title: {snippet['title']}"
+                    print(title_line)
+                    logger.info(title_line)
+                
+                if "content" in snippet:
+                    content = f"\n{snippet['content']}\n"
+                    print(content)
+                    # Log content with proper formatting
+                    for line in snippet['content'].split('\n'):
+                        logger.info(line)
+            else:
+                print(snippet)
+                logger.info(str(snippet))
+        
+        # Log token count
+        token_info = f"\nTotal Tokens: {response.get('totalTokens', 0)}"
+        print(token_info)
+        logger.info(token_info)
+    else:
+        # Create aider_output for JSON formatting
+        aider_output = {
+            "content": json.dumps(response, indent=2) if isinstance(response, dict) else str(response),
+            "library": response.get("library", library_id) if isinstance(response, dict) else library_id,
+            "snippets": response.get("snippets", []) if isinstance(response, dict) else [],
+            "totalTokens": response.get("totalTokens", 0) if isinstance(response, dict) else 0,
+            "lastUpdated": response.get("lastUpdated", "") if isinstance(response, dict) else ""
+        }
+        # Fallback to printing the full JSON if snippets not found
+        formatted_output = json.dumps(aider_output, indent=2, ensure_ascii=False)
+        print(formatted_output)
+        logger.info("Documentation output (JSON format):")
+        logger.info(formatted_output)
 
 async def async_main():
     """Async entry point for the CLI."""
@@ -779,6 +797,10 @@ async def async_main():
                     with open(output_file, "w", encoding="utf-8") as f:
                         json.dump(result, f, indent=2, ensure_ascii=False)
                     logger.info(f"Documentation saved to {output_file}")
+                    
+                    # Always display the documentation in console when saving to file
+                    print("\n=== Documentation saved to file, displaying content ===\n")
+                    display_documentation(result, args.library_id)
                 except Exception as e:
                     logger.error(f"Error saving documentation to specified file: {str(e)}")
         
