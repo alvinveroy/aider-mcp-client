@@ -67,7 +67,8 @@ async def call_mcp_tool(
     args: List[str],
     tool_name: str,
     tool_args: Dict[str, Any],
-    timeout: int = 30
+    timeout: int = 30,
+    new_event_loop: bool = False
 ) -> Optional[Any]:
     """
     Call a tool on an MCP server using the MCP Python SDK.
@@ -83,6 +84,11 @@ async def call_mcp_tool(
         Tool result or None if call failed
     """
     import subprocess
+    
+    # Create a new event loop if requested
+    if new_event_loop:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     
     # Start the MCP server process directly with security checks
     process = None
@@ -267,7 +273,8 @@ async def fetch_documentation_sdk(
     tokens: int = 5000,
     command: str = "npx",
     args: List[str] = ["-y", "@upstash/context7-mcp@latest"],
-    timeout: int = 60  # Increased timeout for documentation fetching
+    timeout: int = 60,  # Increased timeout for documentation fetching
+    new_event_loop: bool = False
 ) -> Optional[Dict[str, Any]]:
     """
     Fetch documentation using the MCP Python SDK.
@@ -295,6 +302,11 @@ async def fetch_documentation_sdk(
     }
     
     try:
+        # Create a new event loop if requested
+        if new_event_loop:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
         # First check if the server is responsive
         logger.debug(f"Checking connection to MCP server before fetching documentation")
         server_params = StdioServerParameters(
@@ -657,7 +669,8 @@ async def resolve_library_id_sdk(
     library_name: str,
     command: str = "npx",
     args: List[str] = ["-y", "@upstash/context7-mcp@latest"],
-    timeout: int = 30
+    timeout: int = 30,
+    new_event_loop: bool = False
 ) -> Optional[str]:
     """
     Resolve a library name to a Context7-compatible ID using the MCP Python SDK.
@@ -690,12 +703,18 @@ async def resolve_library_id_sdk(
     }
     
     try:
+        # Create a new event loop if requested
+        if new_event_loop:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
         result = await call_mcp_tool(
             command=command,
             args=args,
             tool_name="resolve-library-id",
             tool_args=tool_args,
-            timeout=timeout
+            timeout=timeout,
+            new_event_loop=False  # Already created a new loop if needed
         )
         
         if not result:
