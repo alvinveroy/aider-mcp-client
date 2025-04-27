@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 def load_config():
-    """Load MCP server configuration from ~/.mcp_client/config.json or return default."""
+    """Load MCP server configuration from ~/.aider-mcp-client/config.json or return default."""
     default_config = {
         "mcp_server": {
             "command": "npx",
@@ -15,7 +15,7 @@ def load_config():
             "tool": "fetch_documentation"
         }
     }
-    config_path = Path.home() / ".mcp_client" / "config.json"
+    config_path = Path.home() / ".aider-mcp-client" / "config.json"
     if config_path.exists():
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
@@ -119,7 +119,7 @@ def fetch_documentation(library_id, topic="", tokens=5000):
 
 def main():
     # Set up command-line argument parsing
-    parser = argparse.ArgumentParser(description="MCP client for fetching library documentation, defaulting to Context7.")
+    parser = argparse.ArgumentParser(description="Aider MCP client for fetching library documentation, defaulting to Context7.")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     fetch_parser = subparsers.add_parser("fetch", help="Fetch JSON documentation for a library")
     fetch_parser.add_argument("library_id", help="Library ID (e.g., vercel/nextjs)")
