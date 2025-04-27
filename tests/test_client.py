@@ -283,7 +283,8 @@ class TestAiderMcpClient(unittest.TestCase):
     
     @patch('aider_mcp_client.client.communicate_with_mcp_server')
     @patch('aider_mcp_client.client.load_config')
-    def test_end_to_end_mcp_server_communication(self, mock_load_config, mock_communicate):
+    @patch('aider_mcp_client.client.HAS_MCP_SDK', False)  # Force using server communication instead of SDK
+    def test_end_to_end_mcp_server_communication(self, mock_has_sdk, mock_load_config, mock_communicate):
         """Test end-to-end communication with MCP server"""
         # Mock the config
         mock_load_config.return_value = self.test_config
@@ -310,11 +311,14 @@ class TestAiderMcpClient(unittest.TestCase):
             async def test_coro():
                 # We need to patch os.environ.get to ensure test mode works correctly
                 with patch('os.environ.get', return_value="true"):
-                    # First resolve the library ID
-                    library_id = await resolve_library_id("react")
-                    # Then fetch documentation using the resolved ID
-                    result = await fetch_documentation(library_id, "hooks", 5000)
-                    return library_id, result
+                    # Patch the SDK functions to ensure they're not called
+                    with patch('aider_mcp_client.client.resolve_library_id_sdk') as mock_sdk_resolve:
+                        with patch('aider_mcp_client.client.fetch_documentation_sdk') as mock_sdk_fetch:
+                            # First resolve the library ID
+                            library_id = await resolve_library_id("react")
+                            # Then fetch documentation using the resolved ID
+                            result = await fetch_documentation(library_id, "hooks", 5000)
+                            return library_id, result
             
             # Run the test coroutine
             loop = asyncio.get_event_loop()
