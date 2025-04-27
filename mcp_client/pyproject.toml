@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mcp_client"
+name = "aider-mcp-client"
 version = "0.1.0"
 description = "A Python client for interacting with MCP (Model Control Protocol) servers"
 readme = "README.md"
@@ -29,9 +29,9 @@ dependencies = [
 ]
 
 [project.scripts]
-mcp_client = "mcp_client.client:main"
+aider-mcp-client = "mcp_client.client:main"
 
 [project.urls]
 Homepage = "https://github.com/alvinveroy/mcp-client"
 "Bug Tracker" = "https://github.com/alvinveroy/mcp-client/issues"
-"PyPI" = "https://pypi.org/project/mcp_client/"
+"PyPI" = "https://pypi.org/project/aider-mcp-client/"
