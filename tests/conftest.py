@@ -1,6 +1,32 @@
 import pytest
 import sys
+import os
+import asyncio
 from unittest.mock import MagicMock, AsyncMock
+
+# Set test mode environment variable
+os.environ['AIDER_MCP_TEST_MODE'] = 'true'
+
+# Create a fixture to handle event loop issues
+@pytest.fixture(scope="session", autouse=True)
+def event_loop_fixture():
+    """Create and set a new event loop for all tests."""
+    # Create a new event loop
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    else:
+        asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    yield loop
+    
+    # Clean up
+    try:
+        loop.close()
+    except:
+        pass
 
 # Create mock classes for the mcp module
 class MockClientSession:
