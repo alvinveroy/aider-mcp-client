@@ -21,7 +21,7 @@ except ImportError:
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,  # Default to WARNING to suppress INFO logs
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler()]
 )
@@ -652,6 +652,7 @@ async def async_main():
     # Global options that should be available for all commands
     parser.add_argument("-v", "--version", action="store_true", help="Show version information")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--verbose", action="store_true", help="Show detailed logs in console")
     parser.add_argument("--quiet", action="store_true", help="Suppress informational output")
     parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
     parser.add_argument("--json", action="store_true", help="Force JSON output format")
@@ -667,6 +668,7 @@ async def async_main():
     fetch_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
     fetch_parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
     fetch_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    fetch_parser.add_argument("--verbose", action="store_true", help="Show detailed logs in console")
     fetch_parser.add_argument("--json", action="store_true", help="Force JSON output format")
     fetch_parser.add_argument("--output", help="Output file path (default: <library_id>_docs.json)")
     
@@ -676,22 +678,28 @@ async def async_main():
     resolve_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
     resolve_parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
     resolve_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    resolve_parser.add_argument("--verbose", action="store_true", help="Show detailed logs in console")
     resolve_parser.add_argument("--json", action="store_true", help="Force JSON output format")
     
     # List command
     list_parser = subparsers.add_parser("list", help="List supported libraries")
     list_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    list_parser.add_argument("--verbose", action="store_true", help="Show detailed logs in console")
     list_parser.add_argument("--json", action="store_true", help="Force JSON output format")
     
     args = parser.parse_args()
 
-    # Set debug logging if requested
+    # Set logging level based on command line arguments
     if hasattr(args, 'debug') and args.debug:
         logger.setLevel(logging.DEBUG)
         logger.debug("Debug logging enabled")
-    
-    # Set quiet mode if requested
-    if hasattr(args, 'quiet') and args.quiet:
+    elif hasattr(args, 'verbose') and args.verbose:
+        logger.setLevel(logging.INFO)
+        logger.info("Verbose logging enabled")
+    elif hasattr(args, 'quiet') and args.quiet:
+        logger.setLevel(logging.WARNING)
+    else:
+        # By default, only show WARNING and above
         logger.setLevel(logging.WARNING)
 
     if args.version:
