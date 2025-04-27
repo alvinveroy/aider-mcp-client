@@ -6,6 +6,7 @@ This provides a more robust implementation using the official MCP Python SDK.
 import asyncio
 import json
 import logging
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any, Union
 
@@ -71,87 +72,151 @@ async def call_mcp_tool(
     Returns:
         Tool result or None if call failed
     """
-    server_params = StdioServerParameters(
-        command=command,
-        args=args,
-        env=None,
-    )
+    import subprocess
     
+    # Start the MCP server process directly
+    process = None
     try:
-        # Create a timeout for the entire operation
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                # Initialize the connection
-                init_result = await session.initialize()
-                logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
-                
-                # List available tools to verify the tool exists
-                tools = await session.list_tools()
-                logger.debug(f"Available tools: {[tool.name for tool in tools.tools]}")
-                
-                # Verify the tool exists
-                tool_exists = any(tool.name == tool_name for tool in tools.tools)
-                if not tool_exists:
-                    available_tools = [tool.name for tool in tools.tools]
-                    logger.error(f"Tool '{tool_name}' not found. Available tools: {available_tools}")
-                    if "resolve-library-id" in available_tools and tool_name == "resolve-library":
-                        logger.info("Using 'resolve-library-id' instead of 'resolve-library'")
-                        tool_name = "resolve-library-id"
-                    elif "resolve-library" in available_tools and tool_name == "resolve-library-id":
-                        logger.info("Using 'resolve-library' instead of 'resolve-library-id'")
-                        tool_name = "resolve-library"
-                
-                # Call the tool with timeout
-                logger.debug(f"Calling MCP tool: {tool_name} with args: {tool_args}")
+        # Start the process
+        process = subprocess.Popen(
+            [command] + args,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8'
+        )
+        
+        # Check if the process started successfully
+        if process.poll() is not None:
+            stderr = process.stderr.read() if process.stderr else "Unknown error"
+            logger.error(f"Failed to start MCP server process: {stderr}")
+            return None
+            
+        logger.debug(f"MCP server process started with PID: {process.pid}")
+        
+        # Create server parameters
+        server_params = StdioServerParameters(
+            command=command,
+            args=args,
+            env=None,
+        )
+        
+        # Use a try-except block for each async operation to catch specific errors
+        try:
+            # Connect to the server
+            async with stdio_client(server_params) as (read, write):
                 try:
-                    # Use asyncio.wait_for instead of asyncio.timeout for better compatibility
-                    result = await asyncio.wait_for(
-                        session.call_tool(tool_name, arguments=tool_args),
-                        timeout=timeout
-                    )
-                    logger.debug(f"MCP tool result type: {type(result)}")
-                    
-                    # Debug the result structure
-                    if hasattr(result, 'result'):
-                        logger.debug(f"Result has 'result' attribute of type: {type(result.result)}")
-                        if hasattr(result.result, '__dict__'):
-                            logger.debug(f"Result.result.__dict__: {result.result.__dict__}")
-                    
-                    # For CallToolResult, extract the actual data
-                    if isinstance(result, types.CallToolResult):
-                        # For library resolution, extract the library ID
-                        if tool_name == "resolve-library-id":
-                            # Try to extract libraryId from the result
-                            if isinstance(result.result, dict) and "libraryId" in result.result:
-                                logger.debug(f"Found libraryId in result dictionary: {result.result['libraryId']}")
-                                return result.result["libraryId"]
-                            # If result.result is a string and looks like a library ID, return it
-                            elif isinstance(result.result, str) and "/" in result.result:
-                                logger.debug(f"Result appears to be a library ID: {result.result}")
-                                return result.result
-                        
-                        # For documentation fetching, handle the result
-                        elif tool_name == "get-library-docs":
-                            logger.debug(f"Processing get-library-docs result")
-                            # Return the result directly for further processing
-                            return result
-                    
-                    # Return the result as is
-                    return result
-                except asyncio.TimeoutError:
-                    logger.error(f"Timeout after {timeout}s when calling MCP tool: {tool_name}")
-                    return None
+                    # Create session
+                    async with ClientSession(read, write) as session:
+                        try:
+                            # Initialize with timeout
+                            init_result = await asyncio.wait_for(
+                                session.initialize(),
+                                timeout=10  # Short timeout for initialization
+                            )
+                            logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                            
+                            try:
+                                # List tools with timeout
+                                tools = await asyncio.wait_for(
+                                    session.list_tools(),
+                                    timeout=10  # Short timeout for listing tools
+                                )
+                                logger.debug(f"Available tools: {[tool.name for tool in tools.tools]}")
+                                
+                                # Verify the tool exists
+                                tool_exists = any(tool.name == tool_name for tool in tools.tools)
+                                if not tool_exists:
+                                    available_tools = [tool.name for tool in tools.tools]
+                                    logger.error(f"Tool '{tool_name}' not found. Available tools: {available_tools}")
+                                    if "resolve-library-id" in available_tools and tool_name == "resolve-library":
+                                        logger.info("Using 'resolve-library-id' instead of 'resolve-library'")
+                                        tool_name = "resolve-library-id"
+                                    elif "resolve-library" in available_tools and tool_name == "resolve-library-id":
+                                        logger.info("Using 'resolve-library' instead of 'resolve-library-id'")
+                                        tool_name = "resolve-library"
+                                    elif not any(t for t in available_tools if "docs" in t.lower() or "library" in t.lower()):
+                                        logger.error(f"No suitable tools found for documentation or library resolution")
+                                        return None
+                                
+                                # Call the tool with timeout
+                                logger.debug(f"Calling MCP tool: {tool_name} with args: {tool_args}")
+                                try:
+                                    # Use asyncio.wait_for with explicit timeout
+                                    result = await asyncio.wait_for(
+                                        session.call_tool(tool_name, arguments=tool_args),
+                                        timeout=timeout
+                                    )
+                                    logger.debug(f"MCP tool result type: {type(result)}")
+                                    
+                                    # Debug the result structure
+                                    if hasattr(result, 'result'):
+                                        logger.debug(f"Result has 'result' attribute of type: {type(result.result)}")
+                                        if hasattr(result.result, '__dict__'):
+                                            logger.debug(f"Result.result.__dict__: {result.result.__dict__}")
+                                    
+                                    # For CallToolResult, extract the actual data
+                                    if isinstance(result, types.CallToolResult):
+                                        # For library resolution, extract the library ID
+                                        if tool_name == "resolve-library-id":
+                                            # Try to extract libraryId from the result
+                                            if isinstance(result.result, dict) and "libraryId" in result.result:
+                                                logger.debug(f"Found libraryId in result dictionary: {result.result['libraryId']}")
+                                                return result.result["libraryId"]
+                                            # If result.result is a string and looks like a library ID, return it
+                                            elif isinstance(result.result, str) and "/" in result.result:
+                                                logger.debug(f"Result appears to be a library ID: {result.result}")
+                                                return result.result
+                                        
+                                        # For documentation fetching, handle the result
+                                        elif tool_name == "get-library-docs":
+                                            logger.debug(f"Processing get-library-docs result")
+                                            # Return the result directly for further processing
+                                            return result
+                                    
+                                    # Return the result as is
+                                    return result
+                                except asyncio.TimeoutError:
+                                    logger.error(f"Timeout after {timeout}s when calling MCP tool: {tool_name}")
+                                    return None
+                                except Exception as e:
+                                    logger.error(f"Error calling tool {tool_name}: {e}")
+                                    if "400" in str(e):
+                                        logger.error(f"Bad request (400) when calling {tool_name}. Check your arguments: {tool_args}")
+                                    return None
+                            except asyncio.TimeoutError:
+                                logger.error("Timeout when listing tools")
+                                return None
+                            except Exception as e:
+                                logger.error(f"Error listing tools: {e}")
+                                return None
+                        except asyncio.TimeoutError:
+                            logger.error("Timeout during initialization")
+                            return None
+                        except Exception as e:
+                            logger.error(f"Error initializing session: {e}")
+                            return None
                 except Exception as e:
-                    logger.error(f"Error calling tool {tool_name}: {e}")
-                    if "400" in str(e):
-                        logger.error(f"Bad request (400) when calling {tool_name}. Check your arguments: {tool_args}")
+                    logger.error(f"Error creating session: {e}")
                     return None
-    except asyncio.TimeoutError:
-        logger.error(f"Timeout after {timeout}s when calling MCP tool: {tool_name}")
-        return None
+        except Exception as e:
+            logger.error(f"Error connecting to MCP server: {e}")
+            return None
     except Exception as e:
-        logger.error(f"Failed to call MCP tool {tool_name}: {e}")
+        logger.error(f"Failed to set up MCP tool call: {e}")
         return None
+    finally:
+        # Ensure the process is terminated
+        if process and process.poll() is None:
+            try:
+                process.terminate()
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+            except Exception as e:
+                logger.error(f"Error terminating process: {e}")
 
 async def fetch_documentation_sdk(
     library_id: str,
@@ -197,49 +262,97 @@ async def fetch_documentation_sdk(
         
         # Try to connect and initialize first
         try:
-            async with stdio_client(server_params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    # Initialize the connection
-                    init_result = await session.initialize()
-                    logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
-                    
-                    # List available tools to verify the tool exists
-                    tools = await session.list_tools()
-                    available_tools = [tool.name for tool in tools.tools]
-                    logger.debug(f"Available tools: {available_tools}")
-                    
-                    # Check if get-library-docs is available
-                    if "get-library-docs" not in available_tools:
-                        logger.error(f"Tool 'get-library-docs' not found. Available tools: {available_tools}")
-                        # Try alternative tool names
-                        alt_tool_name = None
-                        for tool_name in available_tools:
-                            if "docs" in tool_name.lower() or "documentation" in tool_name.lower():
-                                alt_tool_name = tool_name
-                                logger.info(f"Found alternative documentation tool: {alt_tool_name}")
-                                break
-                        
-                        if alt_tool_name:
-                            logger.info(f"Using alternative tool: {alt_tool_name}")
-                            result = await call_mcp_tool(
-                                command=command,
-                                args=args,
-                                tool_name=alt_tool_name,
-                                tool_args=tool_args,
-                                timeout=timeout
+            # Use a direct approach without TaskGroup to avoid unhandled exceptions
+            process = subprocess.Popen(
+                [command] + args,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8'
+            )
+            
+            # Check if the process started successfully
+            if process.poll() is not None:
+                logger.error(f"Failed to start MCP server process: {process.stderr.read()}")
+                return None
+                
+            logger.debug(f"MCP server process started with PID: {process.pid}")
+            
+            # Now use the SDK to connect to the running process
+            try:
+                async with stdio_client(server_params) as (read, write):
+                    async with ClientSession(read, write) as session:
+                        # Initialize the connection with timeout
+                        try:
+                            init_result = await asyncio.wait_for(
+                                session.initialize(),
+                                timeout=10  # Short timeout for initialization
                             )
-                        else:
-                            logger.error("No suitable documentation tool found")
+                            logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                            
+                            # List available tools to verify the tool exists
+                            tools = await asyncio.wait_for(
+                                session.list_tools(),
+                                timeout=10  # Short timeout for listing tools
+                            )
+                            available_tools = [tool.name for tool in tools.tools]
+                            logger.debug(f"Available tools: {available_tools}")
+                            
+                            # Check if get-library-docs is available
+                            if "get-library-docs" not in available_tools:
+                                logger.error(f"Tool 'get-library-docs' not found. Available tools: {available_tools}")
+                                # Try alternative tool names
+                                alt_tool_name = None
+                                for tool_name in available_tools:
+                                    if "docs" in tool_name.lower() or "documentation" in tool_name.lower():
+                                        alt_tool_name = tool_name
+                                        logger.info(f"Found alternative documentation tool: {alt_tool_name}")
+                                        break
+                                
+                                if alt_tool_name:
+                                    logger.info(f"Using alternative tool: {alt_tool_name}")
+                                    # Call the tool directly without using call_mcp_tool
+                                    try:
+                                        result = await asyncio.wait_for(
+                                            session.call_tool(alt_tool_name, arguments=tool_args),
+                                            timeout=timeout
+                                        )
+                                        logger.debug(f"Tool result type: {type(result)}")
+                                    except Exception as tool_error:
+                                        logger.error(f"Error calling tool {alt_tool_name}: {tool_error}")
+                                        return None
+                                else:
+                                    logger.error("No suitable documentation tool found")
+                                    return None
+                            else:
+                                # Call the tool directly without using call_mcp_tool
+                                try:
+                                    result = await asyncio.wait_for(
+                                        session.call_tool("get-library-docs", arguments=tool_args),
+                                        timeout=timeout
+                                    )
+                                    logger.debug(f"Tool result type: {type(result)}")
+                                except Exception as tool_error:
+                                    logger.error(f"Error calling get-library-docs: {tool_error}")
+                                    return None
+                        except asyncio.TimeoutError:
+                            logger.error(f"Timeout during MCP server initialization or tool listing")
                             return None
-                    else:
-                        # Call the tool with the standard name
-                        result = await call_mcp_tool(
-                            command=command,
-                            args=args,
-                            tool_name="get-library-docs",
-                            tool_args=tool_args,
-                            timeout=timeout
-                        )
+                        except Exception as init_error:
+                            logger.error(f"Error during MCP server initialization: {init_error}")
+                            return None
+            except Exception as sdk_error:
+                logger.error(f"Error using MCP SDK: {sdk_error}")
+                return None
+            finally:
+                # Ensure the process is terminated
+                if process and process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
         except Exception as conn_error:
             logger.error(f"Error connecting to MCP server: {conn_error}")
             return None
