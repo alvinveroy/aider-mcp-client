@@ -85,6 +85,10 @@ echo '{
   ```bash
   python -m mcp_client.client fetch <library_id> [--topic "topic"] [--tokens 5000]
   ```
+  or
+  ```bash
+  aider-mcp-client fetch <library_id> [--topic "topic"] [--tokens 5000]
+  ```
 
 ## Aider Integration
 

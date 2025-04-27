@@ -32,6 +32,6 @@ dependencies = [
 aider-mcp-client = "mcp_client.client:main"
 
 [project.urls]
-Homepage = "https://github.com/alvinveroy/mcp-client"
-"Bug Tracker" = "https://github.com/alvinveroy/mcp-client/issues"
+Homepage = "https://github.com/alvinveroy/aider-mcp-client"
+"Bug Tracker" = "https://github.com/alvinveroy/aider-mcp-client/issues"
 "PyPI" = "https://pypi.org/project/aider-mcp-client/"
