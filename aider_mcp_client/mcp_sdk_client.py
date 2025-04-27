@@ -20,6 +20,8 @@ except ImportError:
 
 logger = logging.getLogger("aider_mcp_client.mcp_sdk_client")
 
+
+
 async def connect_to_mcp_server(
     command: str,
     args: List[str],
@@ -66,6 +68,8 @@ async def connect_to_mcp_server(
     except Exception as e:
         logger.error(f"Failed to connect to MCP server: {e}")
         return None
+
+
 
 async def call_mcp_tool(
     command: str,
@@ -300,6 +304,8 @@ async def call_mcp_tool(
             except Exception as e:
                 logger.error(f"Error terminating process: {e}")
 
+
+
 async def fetch_documentation_sdk(
     library_id: str,
     topic: str = "",
@@ -506,7 +512,7 @@ async def fetch_documentation_sdk(
         # Handle CallToolResult type from MCP SDK
         if hasattr(result, 'result'):
             # Debug the result object structure without exposing sensitive data
-            logger.debug(f"CallToolResult has these attributes: [attribute list redacted]")
+            logger.debug("CallToolResult has these attributes: [attribute list redacted]")
             
             # Extract the actual result data from CallToolResult
             result_data = result.result
@@ -514,7 +520,7 @@ async def fetch_documentation_sdk(
             
             # For Context7, the documentation is in the result data
             if isinstance(result_data, dict) and "content" in result_data:
-                logger.debug(f"Found content in result dictionary")
+                logger.debug("Found content in result dictionary")
                 documentation = result_data["content"]
                 return {
                     "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
@@ -526,7 +532,7 @@ async def fetch_documentation_sdk(
             
             # If result_data has content attribute, use that
             if hasattr(result_data, 'content'):
-                logger.debug(f"Found content attribute in result data")
+                logger.debug("Found content attribute in result data")
                 documentation = result_data.content
                 return {
                     "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
@@ -558,7 +564,7 @@ async def fetch_documentation_sdk(
             # Handle text content array from Context7
             elif hasattr(result_data, 'content'):
                 content = result_data.content
-                logger.debug(f"Found content in result_data: {type(content)}")
+                logger.debug("Found content in result_data: [content redacted]")
                 
                 if isinstance(content, list):
                     # Extract text from TextContent objects
@@ -718,6 +724,8 @@ async def fetch_documentation_sdk(
         logger.error(f"Error fetching documentation: {e}")
         return None
 
+
+
 async def resolve_library_id_sdk(
     library_name: str,
     command: str = "npx",
@@ -812,7 +820,7 @@ async def resolve_library_id_sdk(
             
             # Extract the result field
             result_data = result.result
-            logger.debug(f"Extracted result data type: {type(result_data)}")
+            logger.debug("Extracted result data type: [content redacted]")
             
             # If result_data is a string and looks like a library ID
             if isinstance(result_data, str) and "/" in result_data:
@@ -833,7 +841,7 @@ async def resolve_library_id_sdk(
             # Try to access as dictionary using __dict__
             if hasattr(result_data, '__dict__'):
                 result_dict = result_data.__dict__
-                logger.debug(f"Result data __dict__: {result_dict}")
+                logger.debug("Result data __dict__: [content redacted]")
                 if 'libraryId' in result_dict:
                     return result_dict['libraryId']
         
