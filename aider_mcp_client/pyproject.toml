@@ -1,9 +1,12 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "setuptools-scm"]
+requires = ["setuptools>=61.0", "wheel", "setuptools-scm[toml]>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 write_to = "aider_mcp_client/_version.py"
+write_to_template = "__version__ = '{version}'"
+version_scheme = "no-guess-dev"
+local_scheme = "no-local-version"
 
 [project]
 name = "aider-mcp-client"
