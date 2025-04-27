@@ -202,12 +202,14 @@ class TestAiderMcpClient(unittest.TestCase):
                         "tokens": 6000
                     }
                 },
-                15
+                15,
+                debug_output=False
             )
             
             # Check the result
             self.assertEqual(result["library"], "org/library")
             self.assertEqual(result["snippets"], ["snippet1", "snippet2"])
+            # Use the actual totalTokens from the response
             self.assertEqual(result["totalTokens"], 1000)
             self.assertEqual(result["lastUpdated"], "2025-04-27")
             # Create a test coroutine to run the async code
@@ -233,7 +235,8 @@ class TestAiderMcpClient(unittest.TestCase):
                         "tokens": 6000
                     }
                 },
-                15
+                15,
+                debug_output=False
             )
             
             # Check the result
@@ -344,6 +347,7 @@ class TestAiderMcpClient(unittest.TestCase):
             self.assertEqual(library_id, "react/react")
             self.assertEqual(result["library"], "react/react")
             self.assertEqual(len(result["snippets"]), 2)
+            # Use the totalTokens from the response
             self.assertEqual(result["totalTokens"], 2500)
             self.assertEqual(result["lastUpdated"], "2025-04-27")
             
