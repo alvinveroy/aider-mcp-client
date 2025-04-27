@@ -618,8 +618,9 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
             "lastUpdated": response.get("lastUpdated", "") if isinstance(response, dict) else ""
         }
 
-        # Print JSON output to console
-        print(json.dumps(aider_output, indent=2, ensure_ascii=False))
+        # Always print the documentation to console
+        formatted_output = json.dumps(aider_output, indent=2, ensure_ascii=False)
+        print(formatted_output)
         
         # Save documentation to a JSON file
         output_file = f"{library_id.replace('/', '_')}_docs.json"
