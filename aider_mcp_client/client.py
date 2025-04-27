@@ -433,9 +433,9 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
     
     logger.info(f"Using timeout of {timeout} seconds for resolution with {server_name} server")
     
-    # Construct MCP request for resolve-library-id tool
+    # Construct MCP request for resolve-library tool
     request_data = {
-        "tool": "resolve-library-id",
+        "tool": "resolve-library",
         "args": {
             "libraryName": library_name
         }
