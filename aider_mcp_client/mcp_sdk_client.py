@@ -433,6 +433,8 @@ async def fetch_documentation_sdk(
             
             # Try to access the result data as a dictionary using __dict__
             if hasattr(result_data, '__dict__'):
+                # Get the dictionary representation of the object
+                result_data_dict = result_data.__dict__
                 # Avoid logging potentially sensitive data
                 logger.debug("Result data has __dict__ attribute: [content redacted for security]")
                 if 'content' in result_data_dict:
