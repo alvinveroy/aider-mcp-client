@@ -86,11 +86,18 @@ jobs:
         id: version
         run: |
           VERSION=$(python -c "from setuptools_scm import get_version; print(get_version())")
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          # Only create tags for final releases (not dev versions)
+          if [[ "$VERSION" != *".dev"* ]]; then
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Git tag
-        if: steps.version.outputs.tag
+        if: steps.version.outputs.is_release == 'true'
         uses: actions/github-script@v6
         with:
           script: |
@@ -102,7 +109,7 @@ jobs:
             })
 
       - name: Create release
-        if: steps.version.outputs.tag
+        if: steps.version.outputs.is_release == 'true'
         uses: softprops/action-gh-release@v1
         with:
           name: Release ${{ steps.version.outputs.version }}
