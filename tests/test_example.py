@@ -46,11 +46,11 @@ class TestMcpExample(unittest.TestCase):
                     tokens=1000,
                     _is_test=True
                 )
-                    # Compare only the important fields, ignoring lastUpdated which might differ
-                    self.assertEqual(result["content"], mock_response["content"])
-                    self.assertEqual(result["library"], mock_response["library"])
-                    self.assertEqual(result["snippets"], mock_response["snippets"])
-                    self.assertEqual(result["totalTokens"], mock_response["totalTokens"])
+                # Compare only the important fields, ignoring lastUpdated which might differ
+                self.assertEqual(result["content"], mock_response["content"])
+                self.assertEqual(result["library"], mock_response["library"])
+                self.assertEqual(result["snippets"], mock_response["snippets"])
+                self.assertEqual(result["totalTokens"], mock_response["totalTokens"])
                     mock_call_tool.assert_called_once_with(
                         command="npx",
                         args=["-y", "@upstash/context7-mcp@latest"],
