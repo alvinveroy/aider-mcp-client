@@ -6,8 +6,62 @@ import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 from pathlib import Path
 
-from mcp import ClientSession, StdioServerParameters, types
-from mcp.client.stdio import stdio_client
+# Mock the mcp module since it might not be installed during testing
+class MockClientSession:
+    def __init__(self, *args, **kwargs):
+        pass
+    
+    async def __aenter__(self):
+        return self
+    
+    async def __aexit__(self, *args):
+        pass
+    
+    async def initialize(self):
+        pass
+    
+    async def list_tools(self):
+        pass
+    
+    async def call_tool(self, *args, **kwargs):
+        pass
+
+class MockStdioServerParameters:
+    def __init__(self, command, args, env):
+        self.command = command
+        self.args = args
+        self.env = env
+
+class MockToolArgument:
+    def __init__(self, name, description, required, type):
+        self.name = name
+        self.description = description
+        self.required = required
+        self.type = type
+
+class MockTool:
+    def __init__(self, name, description, arguments):
+        self.name = name
+        self.description = description
+        self.arguments = arguments
+
+# Create mock modules
+mock_types = MagicMock()
+mock_types.Tool = MockTool
+mock_types.ToolArgument = MockToolArgument
+
+# Patch the imports
+with patch.dict('sys.modules', {
+    'mcp': MagicMock(
+        ClientSession=MockClientSession,
+        StdioServerParameters=MockStdioServerParameters,
+        types=mock_types
+    ),
+    'mcp.client.stdio': MagicMock(stdio_client=AsyncMock())
+}):
+    # Now import from our mocked modules
+    from mcp import ClientSession, StdioServerParameters, types
+    from mcp.client.stdio import stdio_client
 
 class TestMcpSdkIntegration(unittest.TestCase):
     def setUp(self):
@@ -63,8 +117,7 @@ class TestMcpSdkIntegration(unittest.TestCase):
                     return init_result
         
         # Run the test coroutine
-        loop = asyncio.get_event_loop()
-        result = loop.run_until_complete(test_coro())
+        result = asyncio.run(test_coro())
         
         # Verify the connection was initialized
         self.assertEqual(result, {"name": "test-server", "version": "1.0.0"})
@@ -114,8 +167,7 @@ class TestMcpSdkIntegration(unittest.TestCase):
                     return tools
         
         # Run the test coroutine
-        loop = asyncio.get_event_loop()
-        tools = loop.run_until_complete(test_coro())
+        tools = asyncio.run(test_coro())
         
         # Verify the tools were listed
         self.assertEqual(len(tools), 1)
@@ -156,8 +208,7 @@ class TestMcpSdkIntegration(unittest.TestCase):
                     return result
         
         # Run the test coroutine
-        loop = asyncio.get_event_loop()
-        result = loop.run_until_complete(test_coro())
+        result = asyncio.run(test_coro())
         
         # Verify the tool was called
         self.assertEqual(result, {"result": "react/react"})

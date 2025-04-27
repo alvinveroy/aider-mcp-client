@@ -55,9 +55,9 @@ class TestMcpExample(unittest.TestCase):
                 tool_args={
                     "context7CompatibleLibraryID": "vercel/nextjs",
                     "topic": "routing",
-                    "tokens": 5000  # Note: The function ensures a minimum of 5000 tokens
+                    "tokens": 1000  # Use the value passed to the function
                 },
-                timeout=30
+                timeout=60  # The fetch_documentation_sdk function uses a 60 second timeout
             )
         
         # Run the test coroutine

@@ -346,10 +346,10 @@ class TestAiderMcpClient(unittest.TestCase):
             # Verify that appropriate messages were printed
             mock_print.assert_any_call("Fetching documentation for react/react on topic: hooks")
 
-    @patch('asyncio.run')
+    @patch('sys.argv')
     @patch('aider_mcp_client.client.resolve_library_id')
     @patch('aider_mcp_client.client.fetch_documentation')
-    def test_async_main_integration(self, mock_fetch_docs, mock_resolve_id, mock_asyncio_run):
+    def test_async_main_integration(self, mock_fetch_docs, mock_resolve_id, mock_argv):
         """Test the async_main function that integrates all components"""
         # Mock the resolve_library_id response
         mock_resolve_id.return_value = "react/react"
@@ -365,33 +365,20 @@ class TestAiderMcpClient(unittest.TestCase):
         }
         
         # Set up command line arguments
-        test_args = ["script_name", "react", "--topic", "components", "--tokens", "3000"]
+        mock_argv.__getitem__.side_effect = ["script_name", "react", "--topic", "components", "--tokens", "3000"].__getitem__
         
-        # Create a mock coroutine object for async_main
-        mock_coro = MagicMock()
-        mock_asyncio_run.side_effect = lambda coro: None
+        # Create a test coroutine to run the async code
+        async def test_coro():
+            await async_main()
+            
+            # Verify the mocks were called with correct arguments
+            mock_resolve_id.assert_called_once_with("react", custom_timeout=None, server_name="context7")
+            mock_fetch_docs.assert_called_once_with("react/react", "components", 3000, custom_timeout=None, server_name="context7")
         
-        with patch('sys.argv', test_args):
-            with patch('builtins.print') as mock_print:
-                # Run the main function
-                import sys
-                old_argv = sys.argv
-                sys.argv = test_args
-                try:
-                    # Create a coroutine to be passed to asyncio.run
-                    async def mock_async_main():
-                        # This simulates what async_main would do
-                        await resolve_library_id("react")
-                        await fetch_documentation("react/react", "components", 3000)
-                    
-                    # Replace async_main with our mock
-                    with patch('aider_mcp_client.client.async_main', return_value=mock_async_main()):
-                        asyncio.run(mock_async_main())
-                finally:
-                    sys.argv = old_argv
-                
-                # Verify that asyncio.run was called
-                mock_asyncio_run.assert_called_once()
+        # Run the test coroutine
+        loop = asyncio.get_event_loop()
+        with patch('builtins.print'):  # Suppress print output
+            loop.run_until_complete(test_coro())
 
 if __name__ == "__main__":
     unittest.main()
