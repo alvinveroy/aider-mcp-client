@@ -2,6 +2,8 @@ import unittest
 from unittest.mock import patch
 from aider_mcp_client.mcp_sdk_client import resolve_library_id_sdk, fetch_documentation_sdk
 
+
+
 class TestMcpExample(unittest.TestCase):
     """Test the example MCP client implementation."""
     
@@ -25,7 +27,7 @@ class TestMcpExample(unittest.TestCase):
     def test_fetch_documentation_sdk(self):
         """Test fetching documentation using the SDK client."""
         # Create a test response that matches what we expect in test mode
-        expected_response = {
+        test_response = {
             "content": "Test documentation for vercel/nextjs",
             "library": "vercel/nextjs",
             "snippets": [],
@@ -61,6 +63,8 @@ class TestMcpExample(unittest.TestCase):
         # Run the test coroutine
         from tests.test_helpers import run_async_test
         run_async_test(test_coro())
+
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -2,7 +2,7 @@ import unittest
 import json
 import tempfile
 import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from pathlib import Path
 from aider_mcp_client.client import (
     load_config,
@@ -11,6 +11,8 @@ from aider_mcp_client.client import (
     list_supported_libraries,
     async_main
 )
+
+
 
 class TestAiderMcpClient(unittest.TestCase):
     def setUp(self):
@@ -41,6 +43,7 @@ class TestAiderMcpClient(unittest.TestCase):
         # Clean up the temporary directory
         self.temp_dir.cleanup()
     
+
     def test_load_config_default(self):
         """Test that default config is loaded when no config files exist"""
         with patch('aider_mcp_client.client.Path.exists', return_value=False):
@@ -50,6 +53,7 @@ class TestAiderMcpClient(unittest.TestCase):
             self.assertEqual(config["mcpServers"]["context7"]["timeout"], 30)
             self.assertEqual(config["mcpServers"]["context7"]["enabled"], True)
     
+
     def test_load_config_local(self):
         """Test loading config from local directory"""
         # Create a temporary local config file
@@ -69,6 +73,7 @@ class TestAiderMcpClient(unittest.TestCase):
                     self.assertEqual(config["mcp_server"]["args"], ["test_arg1", "test_arg2"])
                     self.assertEqual(config["mcp_server"]["tool"], "get-library-docs")
     
+
     def test_load_config_home(self):
         """Test loading config from home directory"""
         # Create a temporary home config file
@@ -88,8 +93,9 @@ class TestAiderMcpClient(unittest.TestCase):
                     self.assertEqual(config["mcp_server"]["command"], "test_command")
                     self.assertEqual(config["mcp_server"]["args"], ["test_arg1", "test_arg2"])
                     self.assertEqual(config["mcp_server"]["tool"], "get-library-docs")
-    
-    
+
+
+
     @patch('aider_mcp_client.client.resolve_library_id_sdk')
     @patch('aider_mcp_client.client.load_config')
     def test_resolve_library_id(self, mock_load_config, mock_sdk):
@@ -114,7 +120,9 @@ class TestAiderMcpClient(unittest.TestCase):
         # Verify SDK was called with correct arguments
         mock_sdk.assert_called_once()
     
+
     @patch('aider_mcp_client.client.resolve_library_id')
+
     @patch('aider_mcp_client.client.fetch_documentation_sdk')
     @patch('aider_mcp_client.client.load_config')
     def test_fetch_documentation_with_resolution(self, mock_load_config, mock_fetch_sdk, mock_resolve):
@@ -170,7 +178,7 @@ class TestAiderMcpClient(unittest.TestCase):
             "lastUpdated": "2025-04-27"
         }
         
-        with patch('builtins.print') as mock_print:
+        with patch('builtins.print'):
             # Create a test coroutine to run the async code
             async def test_coro():
                 # We need to patch os.environ.get to ensure _test_mode works correctly
@@ -190,6 +198,7 @@ class TestAiderMcpClient(unittest.TestCase):
             self.assertEqual(result["totalTokens"], 1000)
             self.assertEqual(result["lastUpdated"], "2025-04-27")
     
+
     @patch('builtins.print')
     def test_list_supported_libraries(self, mock_print):
         """Test listing supported libraries"""
@@ -249,6 +258,7 @@ class TestAiderMcpClient(unittest.TestCase):
             # Verify that appropriate messages were printed
             mock_print.assert_any_call("Fetching documentation for react/react on topic: hooks")
 
+
     @patch('sys.argv')
     @patch('aider_mcp_client.client.fetch_documentation')
     @patch('aider_mcp_client.client.resolve_library_id')
@@ -299,6 +309,8 @@ class TestAiderMcpClient(unittest.TestCase):
         from tests.test_helpers import run_async_test
         with patch('builtins.print'):  # Suppress print output
             run_async_test(test_coro())
+
+
 
 if __name__ == "__main__":
     unittest.main()
