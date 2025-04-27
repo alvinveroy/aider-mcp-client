@@ -44,16 +44,19 @@ async def connect_to_mcp_server(
                 init_result = await session.initialize()
                 # Handle different versions of MCP SDK
                 if hasattr(init_result, 'server_info'):
-                    logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                    server_name = init_result.server_info.name
+                    server_version = init_result.server_info.version
+                    logger.debug(f"Connected to MCP server: {server_name} v{server_version}")
                 else:
                     # Newer versions might have different structure
                     server_name = getattr(init_result, 'name', 'Unknown')
                     server_version = getattr(init_result, 'version', 'Unknown')
                     logger.debug(f"Connected to MCP server: {server_name} v{server_version}")
+                
                 return {
-                    "server_name": init_result.server_info.name,
-                    "server_version": init_result.server_info.version,
-                    "capabilities": init_result.capabilities
+                    "server_name": server_name,
+                    "server_version": server_version,
+                    "capabilities": getattr(init_result, 'capabilities', {})
                 }
     except Exception as e:
         logger.error(f"Failed to connect to MCP server: {e}")
