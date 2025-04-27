@@ -32,12 +32,13 @@ def load_config():
     3. Default configuration if no files found
     """
     default_config = {
-        "mcp_server": {
-            "command": "npx",
-            "args": ["-y", "@upstash/context7-mcp@latest"],
-            "tool": "get-library-docs",
-            "timeout": 30,
-            "enabled": True
+        "mcpServers": {
+            "context7": {
+                "command": "npx",
+                "args": ["-y", "@upstash/context7-mcp@latest"],
+                "enabled": True,
+                "timeout": 30
+            }
         }
     }
     
@@ -83,10 +84,12 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
         logger.debug(f"Sending request: {request_json}")
         process.stdin.write(request_json + '\n')
         process.stdin.flush()
+        process.stdin.close()  # Close stdin to signal we're done sending data
 
         # Read output with a timeout
         start_time = time.time()
         output = []
+        buffer = ""
         
         # Use a simpler approach that works better with mocking in tests
         try:
@@ -110,38 +113,73 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
                     ready_to_read, _, _ = select.select([process.stdout], [], [], 0.1)
                     
                     if process.stdout in ready_to_read:
-                        line = process.stdout.readline()
-                        if line:
+                        chunk = process.stdout.read(4096)  # Read a chunk of data
+                        if not chunk:  # End of file
+                            break
+                            
+                        buffer += chunk
+                        # Try to extract complete JSON objects from the buffer
+                        while True:
                             try:
-                                json_data = json.loads(line.strip())
-                                output.append(json_data)
-                                # Check for completion based on response structure
-                                if isinstance(json_data, dict) and ('library' in json_data or 'result' in json_data):
-                                    logger.debug("Received complete response")
-                                    break
-                            except json.JSONDecodeError:
-                                logger.debug(f"Received non-JSON line: {line.strip()}")
+                                # Find the end of a JSON object
+                                obj_end = buffer.find('\n')
+                                if obj_end == -1:
+                                    break  # No complete object yet
+                                    
+                                json_str = buffer[:obj_end].strip()
+                                buffer = buffer[obj_end+1:]  # Remove processed part
+                                
+                                if json_str:  # Skip empty lines
+                                    json_data = json.loads(json_str)
+                                    output.append(json_data)
+                                    logger.debug(f"Parsed JSON: {json_str[:100]}...")
+                                    
+                                    # Check for completion based on response structure
+                                    if isinstance(json_data, dict) and ('library' in json_data or 'result' in json_data):
+                                        logger.debug("Received complete response")
+                                        break
+                            except json.JSONDecodeError as e:
+                                logger.debug(f"JSON decode error: {e} in: {json_str[:100]}...")
+                                # Skip this line and continue with the next one
+                                buffer = buffer[obj_end+1:]
                                 continue
                     
                     # Check if process has terminated
                     if process.poll() is not None:
                         logger.debug("Process terminated")
+                        # Process any remaining data
+                        remaining = process.stdout.read()
+                        if remaining:
+                            buffer += remaining
+                            # Try to parse any complete JSON objects
+                            for line in buffer.splitlines():
+                                try:
+                                    if line.strip():
+                                        json_data = json.loads(line.strip())
+                                        output.append(json_data)
+                                except json.JSONDecodeError:
+                                    pass
                         break
             else:
                 # Simpler approach for tests
                 while time.time() - start_time < timeout:
                     line = process.stdout.readline()
-                    if line:
+                    if not line:  # End of file
+                        break
+                        
+                    line = line.strip()
+                    if line:  # Skip empty lines
                         try:
-                            json_data = json.loads(line.strip())
+                            json_data = json.loads(line)
                             output.append(json_data)
                             # Check for completion based on response structure
                             if isinstance(json_data, dict) and ('library' in json_data or 'result' in json_data):
                                 logger.debug("Received complete response")
                                 break
                         except json.JSONDecodeError:
-                            logger.debug(f"Received non-JSON line: {line.strip()}")
+                            logger.debug(f"Received non-JSON line: {line}")
                             continue
+                    
                     if process.poll() is not None:
                         logger.debug("Process terminated")
                         break
@@ -151,14 +189,19 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
             # If the advanced I/O handling fails, fall back to simple readline
             while time.time() - start_time < timeout:
                 line = process.stdout.readline()
-                if line:
+                if not line:  # End of file
+                    break
+                    
+                line = line.strip()
+                if line:  # Skip empty lines
                     try:
-                        json_data = json.loads(line.strip())
+                        json_data = json.loads(line)
                         output.append(json_data)
                         if isinstance(json_data, dict) and ('library' in json_data or 'result' in json_data):
                             break
                     except json.JSONDecodeError:
                         continue
+                
                 if process.poll() is not None:
                     break
                 time.sleep(0.01)
@@ -191,7 +234,8 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
 def resolve_library_id(library_name, custom_timeout=None):
     """Resolve a general library name to a Context7-compatible library ID."""
     config = load_config()
-    server_config = config.get("mcp_server", {})
+    # Get the Context7 server config from mcpServers
+    server_config = config.get("mcpServers", {}).get("context7", {})
     command = server_config.get("command", "npx")
     args = server_config.get("args", ["-y", "@upstash/context7-mcp@latest"])
     timeout = custom_timeout or server_config.get("timeout", 30)
@@ -229,7 +273,8 @@ def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None):
     """Fetch JSON documentation from an MCP server."""
     # Load server configuration
     config = load_config()
-    server_config = config.get("mcp_server", {})
+    # Get the Context7 server config from mcpServers
+    server_config = config.get("mcpServers", {}).get("context7", {})
     command = server_config.get("command", "npx")
     args = server_config.get("args", ["-y", "@upstash/context7-mcp@latest"])
     timeout = custom_timeout or server_config.get("timeout", 30)
