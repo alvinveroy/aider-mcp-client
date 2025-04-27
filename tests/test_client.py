@@ -359,9 +359,13 @@ class TestAiderMcpClient(unittest.TestCase):
 
     @patch('sys.argv')
     @patch('aider_mcp_client.client.fetch_documentation')
+    @patch('aider_mcp_client.client.resolve_library_id')
     @patch('aider_mcp_client.client.argparse.ArgumentParser.parse_args')
-    def test_async_main_integration(self, mock_parse_args, mock_fetch_docs, mock_argv):
+    def test_async_main_integration(self, mock_parse_args, mock_resolve_id, mock_fetch_docs, mock_argv):
         """Test the async_main function that integrates all components"""
+        # Mock the resolve_library_id response
+        mock_resolve_id.return_value = "facebook/react"
+        
         # Mock the fetch_documentation response
         mock_fetch_docs.return_value = {
             "library": "facebook/react",
@@ -393,10 +397,11 @@ class TestAiderMcpClient(unittest.TestCase):
         async def test_coro():
             await async_main()
             
-            # Verify the mock was called with correct arguments
-            mock_fetch_docs.assert_called_once_with("react", "components", 3000, 
+            # Verify the mocks were called with correct arguments
+            mock_resolve_id.assert_called_once_with("react", custom_timeout=None, server_name="context7")
+            mock_fetch_docs.assert_called_once_with("facebook/react", "components", 3000, 
                                                    custom_timeout=None, server_name="context7", 
-                                                   display_output=False, output_buffer=[])
+                                                   display_output=True, output_buffer=None)
         
         # Run the test coroutine
         from tests.test_helpers import run_async_test
