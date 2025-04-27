@@ -10,7 +10,7 @@ setup(
     install_requires=["requests>=2.25.0"],
     entry_points={
         "console_scripts": [
-            "aider-mcp-client=mcp_client.client:main",
+            "aider-mcp-client=aider-mcp-client.client:main",
         ],
     },
 )
