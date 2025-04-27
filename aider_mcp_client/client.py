@@ -84,26 +84,48 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
         process.stdin.write(request_json + '\n')
         process.stdin.flush()
 
+        # Use a more robust approach with select for non-blocking I/O
+        import select
+        
         # Read output with a timeout
         start_time = time.time()
         output = []
+        
+        # Set stdout to non-blocking mode
+        import fcntl
+        import os
+        
+        # Get the file descriptor
+        fd = process.stdout.fileno()
+        
+        # Get the current flags
+        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+        
+        # Set the non-blocking flag
+        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+        
         while time.time() - start_time < timeout:
-            line = process.stdout.readline()
-            if line:
-                try:
-                    json_data = json.loads(line.strip())
-                    output.append(json_data)
-                    # Check for completion based on response structure
-                    if isinstance(json_data, dict) and ('library' in json_data or 'result' in json_data):
-                        logger.debug("Received complete response")
-                        break
-                except json.JSONDecodeError:
-                    logger.debug(f"Received non-JSON line: {line.strip()}")
-                    continue
+            # Use select to wait for data with a short timeout
+            ready_to_read, _, _ = select.select([process.stdout], [], [], 0.1)
+            
+            if process.stdout in ready_to_read:
+                line = process.stdout.readline()
+                if line:
+                    try:
+                        json_data = json.loads(line.strip())
+                        output.append(json_data)
+                        # Check for completion based on response structure
+                        if isinstance(json_data, dict) and ('library' in json_data or 'result' in json_data):
+                            logger.debug("Received complete response")
+                            break
+                    except json.JSONDecodeError:
+                        logger.debug(f"Received non-JSON line: {line.strip()}")
+                        continue
+            
+            # Check if process has terminated
             if process.poll() is not None:
                 logger.debug("Process terminated")
                 break
-            time.sleep(0.01)
 
         # Terminate the process
         logger.debug("Terminating MCP server process")
@@ -130,13 +152,15 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
         logger.error(f"Error communicating with MCP server: {e}")
         return None
 
-def resolve_library_id(library_name):
+def resolve_library_id(library_name, custom_timeout=None):
     """Resolve a general library name to a Context7-compatible library ID."""
     config = load_config()
     server_config = config.get("mcp_server", {})
     command = server_config.get("command", "npx")
     args = server_config.get("args", ["-y", "@upstash/context7-mcp@latest"])
-    timeout = server_config.get("timeout", 30)
+    timeout = custom_timeout or server_config.get("timeout", 30)
+    
+    logger.info(f"Using timeout of {timeout} seconds for resolution")
     
     # Construct MCP request for resolve-library-id tool
     request_data = {
@@ -146,33 +170,48 @@ def resolve_library_id(library_name):
         }
     }
     
-    # Communicate with the server
-    response = communicate_with_mcp_server(command, args, request_data, timeout)
+    try:
+        # Communicate with the server
+        response = communicate_with_mcp_server(command, args, request_data, timeout)
+        
+        if not response:
+            logger.error(f"No response received when resolving library ID for '{library_name}'")
+            return None
+            
+        if 'result' not in response:
+            logger.error(f"Invalid response format when resolving library ID for '{library_name}'")
+            logger.debug(f"Response: {response}")
+            return None
+        
+        return response.get('result')
     
-    if not response or 'result' not in response:
-        logger.error(f"Failed to resolve library ID for '{library_name}'")
+    except Exception as e:
+        logger.error(f"Error resolving library ID for '{library_name}': {str(e)}")
         return None
-    
-    return response.get('result')
 
-def fetch_documentation(library_id, topic="", tokens=5000):
+def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None):
     """Fetch JSON documentation from an MCP server."""
     # Load server configuration
     config = load_config()
     server_config = config.get("mcp_server", {})
     command = server_config.get("command", "npx")
     args = server_config.get("args", ["-y", "@upstash/context7-mcp@latest"])
-    timeout = server_config.get("timeout", 30)
+    timeout = custom_timeout or server_config.get("timeout", 30)
+    
+    logger.info(f"Using timeout of {timeout} seconds")
     
     # Check if we need to resolve the library ID first
     if '/' not in library_id:
         logger.info(f"Resolving library ID for '{library_id}'")
-        resolved_id = resolve_library_id(library_id)
-        if resolved_id:
-            library_id = resolved_id
-            logger.info(f"Resolved to '{library_id}'")
-        else:
-            logger.warning(f"Could not resolve library ID. Using original: '{library_id}'")
+        try:
+            resolved_id = resolve_library_id(library_id, custom_timeout=timeout)
+            if resolved_id:
+                library_id = resolved_id
+                logger.info(f"Resolved to '{library_id}'")
+            else:
+                logger.warning(f"Could not resolve library ID. Using original: '{library_id}'")
+        except Exception as e:
+            logger.warning(f"Error resolving library ID: {str(e)}. Using original: '{library_id}'")
 
     # Construct MCP request for get-library-docs tool
     request_data = {
@@ -186,24 +225,30 @@ def fetch_documentation(library_id, topic="", tokens=5000):
 
     # Communicate with the server
     logger.info(f"Fetching documentation for '{library_id}'{' on topic ' + topic if topic else ''}")
-    response = communicate_with_mcp_server(command, args, request_data, timeout)
+    
+    try:
+        response = communicate_with_mcp_server(command, args, request_data, timeout)
+        
+        if not response:
+            logger.error("No valid response received from the server")
+            return None
 
-    if not response:
-        logger.error("No valid response received from the server")
+        # Format output for Aider compatibility
+        aider_output = {
+            "content": json.dumps(response, indent=2),  # Aider expects a content field
+            "library": response.get("library", ""),
+            "snippets": response.get("snippets", []),
+            "totalTokens": response.get("totalTokens", 0),
+            "lastUpdated": response.get("lastUpdated", "")
+        }
+
+        # Print JSON output
+        print(json.dumps(aider_output, indent=2))
+        return aider_output
+    
+    except Exception as e:
+        logger.error(f"Error fetching documentation: {str(e)}")
         return None
-
-    # Format output for Aider compatibility
-    aider_output = {
-        "content": json.dumps(response, indent=2),  # Aider expects a content field
-        "library": response.get("library", ""),
-        "snippets": response.get("snippets", []),
-        "totalTokens": response.get("totalTokens", 0),
-        "lastUpdated": response.get("lastUpdated", "")
-    }
-
-    # Print JSON output
-    print(json.dumps(aider_output, indent=2))
-    return aider_output
 
 def list_supported_libraries():
     """List all libraries supported by Context7."""
@@ -221,10 +266,12 @@ def main():
     fetch_parser.add_argument("library_id", help="Library ID or name (e.g., vercel/nextjs or just nextjs)")
     fetch_parser.add_argument("--topic", default="", help="Topic to filter documentation (optional)")
     fetch_parser.add_argument("--tokens", type=int, default=5000, help="Maximum tokens (default: 5000)")
+    fetch_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
     
     # Resolve command
     resolve_parser = subparsers.add_parser("resolve", help="Resolve a library name to a Context7-compatible ID")
     resolve_parser.add_argument("library_name", help="Library name to resolve (e.g., nextjs)")
+    resolve_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
     
     # List command
     list_parser = subparsers.add_parser("list", help="List supported libraries")
@@ -232,6 +279,7 @@ def main():
     # Global options
     parser.add_argument("-v", "--version", action="store_true", help="Show version information")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--quiet", action="store_true", help="Suppress informational output")
 
     args = parser.parse_args()
 
@@ -239,6 +287,10 @@ def main():
     if hasattr(args, 'debug') and args.debug:
         logger.setLevel(logging.DEBUG)
         logger.debug("Debug logging enabled")
+    
+    # Set quiet mode if requested
+    if hasattr(args, 'quiet') and args.quiet:
+        logger.setLevel(logging.WARNING)
 
     if args.version:
         verbose()
@@ -248,21 +300,44 @@ def main():
         verbose()
         return
 
-    if args.command == "fetch":
-        if hasattr(args, 'tokens') and args.tokens <= 0:
-            logger.error("Error: Tokens must be a positive integer")
-            return
-        fetch_documentation(args.library_id, args.topic, args.tokens)
+    try:
+        if args.command == "fetch":
+            if hasattr(args, 'tokens') and args.tokens <= 0:
+                logger.error("Error: Tokens must be a positive integer")
+                return
+            
+            # Use command-line timeout if provided
+            timeout = args.timeout if hasattr(args, 'timeout') and args.timeout else None
+            
+            # Load config to get default timeout if not specified
+            if timeout is None:
+                config = load_config()
+                timeout = config.get("mcp_server", {}).get("timeout", 30)
+            
+            fetch_documentation(args.library_id, args.topic, args.tokens)
+        
+        elif args.command == "resolve":
+            # Use command-line timeout if provided
+            timeout = args.timeout if hasattr(args, 'timeout') and args.timeout else None
+            
+            resolved = resolve_library_id(args.library_name)
+            if resolved:
+                print(f"Resolved '{args.library_name}' to: {resolved}")
+            else:
+                print(f"Could not resolve library name: {args.library_name}")
+        
+        elif args.command == "list":
+            list_supported_libraries()
     
-    elif args.command == "resolve":
-        resolved = resolve_library_id(args.library_name)
-        if resolved:
-            print(f"Resolved '{args.library_name}' to: {resolved}")
-        else:
-            print(f"Could not resolve library name: {args.library_name}")
-    
-    elif args.command == "list":
-        list_supported_libraries()
+    except KeyboardInterrupt:
+        logger.info("\nOperation cancelled by user")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        if hasattr(args, 'debug') and args.debug:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
