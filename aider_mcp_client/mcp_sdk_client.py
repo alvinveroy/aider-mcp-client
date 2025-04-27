@@ -113,6 +113,19 @@ async def call_mcp_tool(
                     # Handle CallToolResult type
                     if hasattr(result, 'result'):
                         logger.debug(f"Result has 'result' attribute: {result.result}")
+                        
+                        # For Context7, directly extract the content if it's a documentation request
+                        if tool_name == "get-library-docs" and hasattr(result, 'content'):
+                            logger.debug(f"Direct content extraction for get-library-docs")
+                            # This is a special case for Context7 documentation
+                            return result
+                        
+                        # For library resolution, try to extract libraryId
+                        if tool_name == "resolve-library-id" and hasattr(result, 'libraryId'):
+                            logger.debug(f"Direct libraryId extraction: {result.libraryId}")
+                            return result
+                        
+                        # If we can't extract directly, return the whole result
                         return result
                     return result
                 except asyncio.TimeoutError:
@@ -178,6 +191,9 @@ async def fetch_documentation_sdk(
             
         # Handle CallToolResult type from MCP SDK
         if hasattr(result, 'result'):
+            # Debug the full result object to understand its structure
+            logger.debug(f"CallToolResult attributes: {dir(result)}")
+            
             # For Context7, the documentation is often in the content field of the result
             if hasattr(result, 'content'):
                 logger.debug(f"Found content directly in CallToolResult")
@@ -190,28 +206,76 @@ async def fetch_documentation_sdk(
                     "lastUpdated": getattr(result, 'lastUpdated', "")
                 }
             
+            # Try to access the result as a dictionary using __dict__
+            if hasattr(result, '__dict__'):
+                result_dict = result.__dict__
+                logger.debug(f"Result __dict__: {result_dict}")
+                if 'content' in result_dict:
+                    documentation = result_dict['content']
+                    return {
+                        "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
+                        "library": library_id,
+                        "snippets": result_dict.get('snippets', []),
+                        "totalTokens": result_dict.get('totalTokens', tokens),
+                        "lastUpdated": result_dict.get('lastUpdated', "")
+                    }
+            
             # Extract the actual result from CallToolResult
             result_data = result.result
             logger.debug(f"Extracted result from CallToolResult: {type(result_data)}")
+            
+            # If result_data has __dict__, try to extract content from it
+            if hasattr(result_data, '__dict__'):
+                result_data_dict = result_data.__dict__
+                logger.debug(f"Result data __dict__: {result_data_dict}")
+                if 'content' in result_data_dict:
+                    documentation = result_data_dict['content']
+                    return {
+                        "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
+                        "library": library_id,
+                        "snippets": result_data_dict.get('snippets', []),
+                        "totalTokens": result_data_dict.get('totalTokens', tokens),
+                        "lastUpdated": result_data_dict.get('lastUpdated', "")
+                    }
             
             # If result_data is a dictionary, use it directly
             if isinstance(result_data, dict):
                 result = result_data
             # Handle text content array from Context7
-            elif hasattr(result_data, 'content') and isinstance(result_data.content, list):
-                # Extract text from TextContent objects
-                text_content = []
-                for item in result_data.content:
-                    if hasattr(item, 'text'):
-                        text_content.append(item.text)
-                documentation = "\n".join(text_content)
-                return {
-                    "content": documentation,
-                    "library": library_id,
-                    "snippets": [],
-                    "totalTokens": tokens,
-                    "lastUpdated": ""
-                }
+            elif hasattr(result_data, 'content'):
+                content = result_data.content
+                logger.debug(f"Found content in result_data: {type(content)}")
+                
+                if isinstance(content, list):
+                    # Extract text from TextContent objects
+                    text_content = []
+                    for item in content:
+                        if hasattr(item, 'text'):
+                            text_content.append(item.text)
+                        elif isinstance(item, dict) and 'text' in item:
+                            text_content.append(item['text'])
+                        elif hasattr(item, '__dict__'):
+                            item_dict = item.__dict__
+                            if 'text' in item_dict:
+                                text_content.append(item_dict['text'])
+                    
+                    documentation = "\n".join(text_content)
+                    logger.debug(f"Extracted text content: {len(documentation)} characters")
+                    return {
+                        "content": documentation,
+                        "library": library_id,
+                        "snippets": [],
+                        "totalTokens": tokens,
+                        "lastUpdated": ""
+                    }
+                elif isinstance(content, str):
+                    return {
+                        "content": content,
+                        "library": library_id,
+                        "snippets": [],
+                        "totalTokens": tokens,
+                        "lastUpdated": ""
+                    }
             # Try to parse as JSON if it's a string
             elif isinstance(result_data, str):
                 try:
@@ -342,14 +406,31 @@ async def resolve_library_id_sdk(
     
     # Handle CallToolResult type from MCP SDK
     if hasattr(result, 'result'):
+        # Debug the full result object to understand its structure
+        logger.debug(f"CallToolResult attributes: {dir(result)}")
+        
         # For Context7, the result is often a CallToolResult with a libraryId field
         if hasattr(result, 'libraryId'):
             logger.debug(f"Found libraryId directly in CallToolResult: {result.libraryId}")
             return result.libraryId
-            
+        
+        # Try to access the result as a dictionary using __dict__
+        if hasattr(result, '__dict__'):
+            result_dict = result.__dict__
+            logger.debug(f"Result __dict__: {result_dict}")
+            if 'libraryId' in result_dict:
+                return result_dict['libraryId']
+        
         # Extract the actual result data
         result_data = result.result
         logger.debug(f"Extracted result from CallToolResult: {type(result_data)}")
+        
+        # If result_data has __dict__, try to extract libraryId from it
+        if hasattr(result_data, '__dict__'):
+            result_data_dict = result_data.__dict__
+            logger.debug(f"Result data __dict__: {result_data_dict}")
+            if 'libraryId' in result_data_dict:
+                return result_data_dict['libraryId']
         
         # If it's a dictionary, look for libraryId
         if isinstance(result_data, dict):
