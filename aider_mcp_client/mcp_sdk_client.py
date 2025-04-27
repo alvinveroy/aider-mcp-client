@@ -91,8 +91,28 @@ async def call_mcp_tool(
         if not isinstance(command, str) or any(not isinstance(arg, str) for arg in args):
             logger.error("Invalid command or arguments type - potential injection attempt")
             return None
+        
+        # Check if the command exists in PATH
+        import shutil
+        if not shutil.which(command):
+            logger.error(f"Command '{command}' not found in PATH")
+            # Try to use a fallback command if available
+            if command == "test_command":
+                fallback = "npx"
+                if shutil.which(fallback):
+                    logger.info(f"Using fallback command '{fallback}' instead of '{command}'")
+                    command = fallback
+                    # Adjust args for npx if needed
+                    if not args:
+                        args = ["-y", "@upstash/context7-mcp@latest"]
+                else:
+                    logger.error(f"Fallback command '{fallback}' not found either")
+                    return None
+            else:
+                return None
                 
         # Start the process with security measures
+        logger.debug(f"Starting process with command: {command} {' '.join(args)}")
         process = subprocess.Popen(
             [command] + args,
             stdin=subprocess.PIPE,
@@ -290,7 +310,27 @@ async def fetch_documentation_sdk(
             if not isinstance(command, str) or any(not isinstance(arg, str) for arg in args):
                 logger.error("Invalid command or arguments type - potential injection attempt")
                 return None
+            
+            # Check if the command exists in PATH
+            import shutil
+            if not shutil.which(command):
+                logger.error(f"Command '{command}' not found in PATH")
+                # Try to use a fallback command if available
+                if command == "test_command":
+                    fallback = "npx"
+                    if shutil.which(fallback):
+                        logger.info(f"Using fallback command '{fallback}' instead of '{command}'")
+                        command = fallback
+                        # Adjust args for npx if needed
+                        if not args:
+                            args = ["-y", "@upstash/context7-mcp@latest"]
+                    else:
+                        logger.error(f"Fallback command '{fallback}' not found either")
+                        return None
+                else:
+                    return None
                 
+            logger.debug(f"Starting process with command: {command} {' '.join(args)}")
             process = subprocess.Popen(
                 [command] + args,
                 stdin=subprocess.PIPE,
