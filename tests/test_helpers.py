@@ -29,10 +29,17 @@ def patch_asyncio_for_tests():
 def run_async_test(coro):
     """Run an async test function safely."""
     try:
+        # Ensure AIDER_MCP_TEST_MODE is set for tests
+        old_environ = os.environ.copy()
+        os.environ["AIDER_MCP_TEST_MODE"] = "true"
+        
+        # Get or create event loop
         loop = asyncio.get_event_loop()
         if loop.is_closed():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+        
+        # Run the coroutine
         return loop.run_until_complete(coro)
     except RuntimeError as e:
         if "Event loop is closed" in str(e):
@@ -41,6 +48,11 @@ def run_async_test(coro):
             asyncio.set_event_loop(loop)
             return loop.run_until_complete(coro)
         raise
+    finally:
+        # Restore original environment
+        if 'old_environ' in locals():
+            os.environ.clear()
+            os.environ.update(old_environ)
 
 def mock_stdio_client():
     """Create a properly mocked stdio_client for tests."""

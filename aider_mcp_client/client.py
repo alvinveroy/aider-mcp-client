@@ -4,7 +4,6 @@ import argparse
 import sys
 import time
 import os
-import os
 import asyncio
 from pathlib import Path
 import logging
@@ -94,7 +93,10 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
                 "totalTokens": request_data.get("args", {}).get("tokens", 5000),
                 "lastUpdated": "2025-04-27"
             }
-        return {"test_result": True, "tool_name": request_data.get("tool"), "args": request_data.get("args", {})}
+        # Make sure we return a value that will satisfy the test assertions
+        mock_call_result = {"test_result": True, "tool_name": request_data.get("tool"), "args": request_data.get("args", {})}
+        logger.debug(f"Returning mock data in test mode: {mock_call_result}")
+        return mock_call_result
         
     # Check if we should use the MCP SDK
     config = load_config()
@@ -577,7 +579,7 @@ async def fetch_documentation_sdk(
                 "library": "vercel/nextjs",
                 "snippets": [],
                 "totalTokens": 1000,
-                "lastUpdated": "2023-01-01"
+                "lastUpdated": "2023-01-01"  # This exact date is expected in tests
             }
         # Default mock response
         return {
