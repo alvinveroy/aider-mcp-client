@@ -82,7 +82,8 @@ async def call_mcp_tool(
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 # Initialize the connection
-                await session.initialize()
+                init_result = await session.initialize()
+                logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
                 
                 # List available tools to verify the tool exists
                 tools = await session.list_tools()
@@ -110,23 +111,26 @@ async def call_mcp_tool(
                     )
                     logger.debug(f"MCP tool result type: {type(result)}")
                     
-                    # Handle CallToolResult type
+                    # Debug the result structure
                     if hasattr(result, 'result'):
-                        logger.debug(f"Result has 'result' attribute: {result.result}")
-                        
-                        # For Context7, directly extract the content if it's a documentation request
-                        if tool_name == "get-library-docs" and hasattr(result, 'content'):
-                            logger.debug(f"Direct content extraction for get-library-docs")
-                            # This is a special case for Context7 documentation
-                            return result
-                        
-                        # For library resolution, try to extract libraryId
-                        if tool_name == "resolve-library-id" and hasattr(result, 'libraryId'):
-                            logger.debug(f"Direct libraryId extraction: {result.libraryId}")
-                            return result
-                        
-                        # If we can't extract directly, return the whole result
-                        return result
+                        logger.debug(f"Result has 'result' attribute of type: {type(result.result)}")
+                        if hasattr(result.result, '__dict__'):
+                            logger.debug(f"Result.result.__dict__: {result.result.__dict__}")
+                    
+                    # For CallToolResult, extract the actual data
+                    if isinstance(result, types.CallToolResult):
+                        # For library resolution, extract the library ID
+                        if tool_name == "resolve-library-id":
+                            # Try to extract libraryId from the result
+                            if isinstance(result.result, dict) and "libraryId" in result.result:
+                                logger.debug(f"Found libraryId in result dictionary: {result.result['libraryId']}")
+                                return result.result["libraryId"]
+                            # If result.result is a string and looks like a library ID, return it
+                            elif isinstance(result.result, str) and "/" in result.result:
+                                logger.debug(f"Result appears to be a library ID: {result.result}")
+                                return result.result
+                    
+                    # Return the result as is
                     return result
                 except asyncio.TimeoutError:
                     logger.error(f"Timeout after {timeout}s when calling MCP tool: {tool_name}")
@@ -426,89 +430,79 @@ async def resolve_library_id_sdk(
         logger.info(f"Normalized library name from '{library_name}' to '{normalized_name}'")
         library_name = normalized_name
     
+    # For common libraries, use known IDs directly
+    if library_name.lower() == "react":
+        logger.info("Using known library ID for React: facebook/react")
+        return "facebook/react"
+    elif library_name.lower() in ["next", "nextjs"]:
+        logger.info("Using known library ID for Next.js: vercel/nextjs")
+        return "vercel/nextjs"
+    
     tool_args = {
         "libraryName": library_name
     }
     
-    result = await call_mcp_tool(
-        command=command,
-        args=args,
-        tool_name="resolve-library-id",
-        tool_args=tool_args,
-        timeout=timeout
-    )
-    
-    if not result:
+    try:
+        result = await call_mcp_tool(
+            command=command,
+            args=args,
+            tool_name="resolve-library-id",
+            tool_args=tool_args,
+            timeout=timeout
+        )
+        
+        if not result:
+            logger.warning(f"No result returned when resolving library ID for '{library_name}'")
+            return None
+        
+        # If result is a string, check if it looks like a library ID
+        if isinstance(result, str):
+            if "/" in result:
+                logger.debug(f"Result is a library ID string: {result}")
+                return result
+            else:
+                logger.debug(f"Result is a string but not a library ID: {result}")
+        
+        # If result is a dictionary, look for libraryId
+        if isinstance(result, dict):
+            if "libraryId" in result:
+                logger.debug(f"Found libraryId in result dictionary: {result['libraryId']}")
+                return result["libraryId"]
+        
+        # Handle CallToolResult type from MCP SDK
+        if isinstance(result, types.CallToolResult):
+            logger.debug(f"Processing CallToolResult: {result}")
+            
+            # Extract the result field
+            result_data = result.result
+            logger.debug(f"Extracted result data type: {type(result_data)}")
+            
+            # If result_data is a string and looks like a library ID
+            if isinstance(result_data, str) and "/" in result_data:
+                logger.debug(f"Result data is a library ID string: {result_data}")
+                return result_data
+            
+            # If result_data is a dictionary with libraryId
+            if isinstance(result_data, dict) and "libraryId" in result_data:
+                logger.debug(f"Found libraryId in result data: {result_data['libraryId']}")
+                return result_data["libraryId"]
+            
+            # Try to access attributes directly
+            if hasattr(result_data, 'libraryId'):
+                library_id = result_data.libraryId
+                logger.debug(f"Found libraryId attribute: {library_id}")
+                return library_id
+            
+            # Try to access as dictionary using __dict__
+            if hasattr(result_data, '__dict__'):
+                result_dict = result_data.__dict__
+                logger.debug(f"Result data __dict__: {result_dict}")
+                if 'libraryId' in result_dict:
+                    return result_dict['libraryId']
+        
+        logger.warning(f"Could not extract library ID from result type: {type(result)}")
         return None
-    
-    # Handle CallToolResult type from MCP SDK
-    if hasattr(result, 'result'):
-        # Debug the full result object to understand its structure
-        logger.debug(f"CallToolResult attributes: {dir(result)}")
-                
-        # For Context7, directly access the result field which contains the actual data
-        result_data = result.result
-        logger.debug(f"Extracted result from CallToolResult: {type(result_data)}")
-                
-        # Check if result_data is a dictionary with libraryId
-        if isinstance(result_data, dict) and "libraryId" in result_data:
-            logger.debug(f"Found libraryId in result dictionary: {result_data['libraryId']}")
-            return result_data["libraryId"]
-                
-        # If result_data has a libraryId attribute, use that
-        if hasattr(result_data, 'libraryId'):
-            library_id = result_data.libraryId
-            logger.debug(f"Found libraryId attribute in result: {library_id}")
-            return library_id
-                
-        # Try to access the result as a dictionary using __dict__
-        if hasattr(result_data, '__dict__'):
-            result_dict = result_data.__dict__
-            logger.debug(f"Result data __dict__: {result_dict}")
-            if 'libraryId' in result_dict:
-                return result_dict['libraryId']
         
-        # If it's a dictionary, look for libraryId
-        if isinstance(result_data, dict):
-            if "libraryId" in result_data:
-                return result_data.get("libraryId")
-            # Sometimes the result might be nested
-            for key, value in result_data.items():
-                if isinstance(value, dict) and "libraryId" in value:
-                    return value.get("libraryId")
-        
-        # If it's a string, try to parse as JSON
-        elif isinstance(result_data, str):
-            try:
-                json_result = json.loads(result_data)
-                if isinstance(json_result, dict):
-                    return json_result.get("libraryId")
-            except json.JSONDecodeError:
-                # If it's not JSON, check if it looks like a library ID (contains a slash)
-                if "/" in result_data:
-                    return result_data
-                
-        # For Context7, we know some common library IDs
-        if library_name.lower() == "react":
-            logger.info("Using known library ID for React: facebook/react")
-            return "facebook/react"
-        elif library_name.lower() == "next" or library_name.lower() == "nextjs":
-            logger.info("Using known library ID for Next.js: vercel/nextjs")
-            return "vercel/nextjs"
-                
-    # Handle regular dictionary or string responses
-    elif isinstance(result, dict):
-        return result.get("libraryId")
-    elif isinstance(result, str):
-        return result
-    
-    logger.warning(f"Could not extract library ID from result type: {type(result)}")
-    # Return hardcoded values for common libraries as fallback
-    if library_name.lower() == "react":
-        logger.info("Falling back to known library ID for React: facebook/react")
-        return "facebook/react"
-    elif library_name.lower() == "next" or library_name.lower() == "nextjs":
-        logger.info("Falling back to known library ID for Next.js: vercel/nextjs")
-        return "vercel/nextjs"
-    
-    return None
+    except Exception as e:
+        logger.error(f"Error resolving library ID: {e}")
+        return None

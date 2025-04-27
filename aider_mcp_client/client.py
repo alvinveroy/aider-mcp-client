@@ -94,6 +94,10 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30):
             break
     
     if use_sdk:
+        # Verify MCP SDK is available
+        if not HAS_MCP_SDK:
+            logger.error("MCP SDK is required but not installed. Install with: pip install mcp-sdk")
+            return None
         return await communicate_with_mcp_sdk(command, args, request_data, timeout)
     
     try:
@@ -438,12 +442,26 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
         try:
             from aider_mcp_client.mcp_sdk_client import resolve_library_id_sdk
             logger.info(f"Using MCP SDK to resolve library ID for '{library_name}'")
-            return await resolve_library_id_sdk(
+            library_id = await resolve_library_id_sdk(
                 library_name=library_name,
                 command=command,
                 args=args,
                 timeout=timeout
             )
+            
+            # If we got a valid library ID, return it
+            if library_id:
+                return library_id
+                
+            # For common libraries, use known IDs as fallback
+            if library_name.lower() == "react":
+                logger.info("Using known library ID for React: facebook/react")
+                return "facebook/react"
+            elif library_name.lower() in ["next", "nextjs"]:
+                logger.info("Using known library ID for Next.js: vercel/nextjs")
+                return "vercel/nextjs"
+                
+            logger.info("Falling back to direct MCP communication")
         except Exception as e:
             logger.error(f"Error using SDK to resolve library ID: {str(e)}")
             logger.info("Falling back to direct MCP communication")
@@ -509,7 +527,15 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
                 library_id = resolved_id
                 logger.info(f"Resolved to '{library_id}'")
             else:
-                logger.warning(f"Could not resolve library ID. Using original: '{library_id}'")
+                # For common libraries, use known IDs as fallback
+                if library_id.lower() == "react":
+                    library_id = "facebook/react"
+                    logger.info(f"Using known library ID for React: {library_id}")
+                elif library_id.lower() in ["next", "nextjs"]:
+                    library_id = "vercel/nextjs"
+                    logger.info(f"Using known library ID for Next.js: {library_id}")
+                else:
+                    logger.warning(f"Could not resolve library ID. Using original: '{library_id}'")
         except Exception as e:
             logger.warning(f"Error resolving library ID: {str(e)}. Using original: '{library_id}'")
 
@@ -518,7 +544,7 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         try:
             from aider_mcp_client.mcp_sdk_client import fetch_documentation_sdk
             logger.info(f"Using MCP SDK to fetch documentation for '{library_id}'")
-            return await fetch_documentation_sdk(
+            result = await fetch_documentation_sdk(
                 library_id=library_id,
                 topic=topic,
                 tokens=tokens,
@@ -526,6 +552,9 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
                 args=args,
                 timeout=timeout
             )
+            if result:
+                return result
+            logger.info("SDK returned no results. Falling back to direct MCP communication")
         except Exception as e:
             logger.error(f"Error using SDK to fetch documentation: {str(e)}")
             logger.info("Falling back to direct MCP communication")
@@ -582,8 +611,8 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
             "lastUpdated": response.get("lastUpdated", "") if isinstance(response, dict) else ""
         }
 
-        # Print JSON output
-        print(json.dumps(aider_output, indent=2))
+        # Print JSON output to console
+        print(json.dumps(aider_output, indent=2, ensure_ascii=False))
         return aider_output
     
     except Exception as e:
@@ -608,6 +637,7 @@ async def async_main():
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--quiet", action="store_true", help="Suppress informational output")
     parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
+    parser.add_argument("--json", action="store_true", help="Force JSON output format")
     
     # Create subparsers for commands
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -620,6 +650,7 @@ async def async_main():
     fetch_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
     fetch_parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
     fetch_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    fetch_parser.add_argument("--json", action="store_true", help="Force JSON output format")
     
     # Resolve command
     resolve_parser = subparsers.add_parser("resolve", help="Resolve a library name to a Context7-compatible ID")
@@ -627,10 +658,12 @@ async def async_main():
     resolve_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
     resolve_parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
     resolve_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    resolve_parser.add_argument("--json", action="store_true", help="Force JSON output format")
     
     # List command
     list_parser = subparsers.add_parser("list", help="List supported libraries")
     list_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    list_parser.add_argument("--json", action="store_true", help="Force JSON output format")
     
     args = parser.parse_args()
 
@@ -677,12 +710,38 @@ async def async_main():
             
             resolved = await resolve_library_id(args.library_name, custom_timeout=timeout, server_name=server_name)
             if resolved:
-                print(f"Resolved '{args.library_name}' to: {resolved}")
+                if getattr(args, 'json', False):
+                    # Output in JSON format
+                    result = {
+                        "libraryName": args.library_name,
+                        "libraryId": resolved,
+                        "status": "success"
+                    }
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                else:
+                    print(f"Resolved '{args.library_name}' to: {resolved}")
             else:
-                print(f"Could not resolve library name: {args.library_name}")
+                if getattr(args, 'json', False):
+                    # Output in JSON format
+                    result = {
+                        "libraryName": args.library_name,
+                        "status": "error",
+                        "message": "Could not resolve library name"
+                    }
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                else:
+                    print(f"Could not resolve library name: {args.library_name}")
         
         elif args.command == "list":
-            list_supported_libraries()
+            if getattr(args, 'json', False):
+                # Output in JSON format
+                result = {
+                    "status": "info",
+                    "message": "This feature is not yet implemented. Please check https://context7.com for supported libraries."
+                }
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+            else:
+                list_supported_libraries()
     
     except KeyboardInterrupt:
         logger.info("\nOperation cancelled by user")
