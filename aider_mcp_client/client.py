@@ -628,6 +628,8 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         # Display the documentation in the console if requested
         if display_output:
             display_documentation(response, library_id)
+        else:
+            logger.info("Output not displayed in console (--output flag used)")
         
         # Save documentation to a JSON file
         output_file = f"{library_id.replace('/', '_')}_docs.json"
@@ -654,6 +656,10 @@ def list_supported_libraries():
 
 def display_documentation(response, library_id):
     """Helper function to display documentation in the console."""
+    # Temporarily set logger to INFO level to ensure output is visible
+    original_level = logger.level
+    logger.setLevel(logging.INFO)
+    
     if isinstance(response, dict) and "snippets" in response and response["snippets"]:
         # Log documentation header
         doc_header = f"\n=== Documentation for {library_id} ===\n"
@@ -700,6 +706,9 @@ def display_documentation(response, library_id):
         print(formatted_output)
         logger.info("Documentation output (JSON format):")
         logger.info(formatted_output)
+    
+    # Restore original logger level
+    logger.setLevel(original_level)
 
 async def async_main():
     """Async entry point for the CLI."""
@@ -756,8 +765,8 @@ async def async_main():
     elif hasattr(args, 'quiet') and args.quiet:
         logger.setLevel(logging.WARNING)
     else:
-        # By default, only show WARNING and above
-        logger.setLevel(logging.WARNING)
+        # By default, use INFO level for better visibility of documentation output
+        logger.setLevel(logging.INFO)
 
     if args.version:
         verbose()
