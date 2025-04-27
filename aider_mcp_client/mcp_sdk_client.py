@@ -57,7 +57,7 @@ async def call_mcp_tool(
     tool_name: str,
     tool_args: Dict[str, Any],
     timeout: int = 30
-) -> Optional[Dict[str, Any]]:
+) -> Optional[Any]:
     """
     Call a tool on an MCP server using the MCP Python SDK.
     
@@ -84,6 +84,22 @@ async def call_mcp_tool(
                 # Initialize the connection
                 await session.initialize()
                 
+                # List available tools to verify the tool exists
+                tools = await session.list_tools()
+                logger.debug(f"Available tools: {[tool.name for tool in tools.tools]}")
+                
+                # Verify the tool exists
+                tool_exists = any(tool.name == tool_name for tool in tools.tools)
+                if not tool_exists:
+                    available_tools = [tool.name for tool in tools.tools]
+                    logger.error(f"Tool '{tool_name}' not found. Available tools: {available_tools}")
+                    if "resolve-library-id" in available_tools and tool_name == "resolve-library":
+                        logger.info("Using 'resolve-library-id' instead of 'resolve-library'")
+                        tool_name = "resolve-library-id"
+                    elif "resolve-library" in available_tools and tool_name == "resolve-library-id":
+                        logger.info("Using 'resolve-library' instead of 'resolve-library-id'")
+                        tool_name = "resolve-library"
+                
                 # Call the tool with timeout
                 logger.debug(f"Calling MCP tool: {tool_name} with args: {tool_args}")
                 try:
@@ -93,9 +109,19 @@ async def call_mcp_tool(
                         timeout=timeout
                     )
                     logger.debug(f"MCP tool result type: {type(result)}")
+                    
+                    # Handle CallToolResult type
+                    if hasattr(result, 'result'):
+                        logger.debug(f"Result has 'result' attribute: {result.result}")
+                        return result
                     return result
                 except asyncio.TimeoutError:
                     logger.error(f"Timeout after {timeout}s when calling MCP tool: {tool_name}")
+                    return None
+                except Exception as e:
+                    logger.error(f"Error calling tool {tool_name}: {e}")
+                    if "400" in str(e):
+                        logger.error(f"Bad request (400) when calling {tool_name}. Check your arguments: {tool_args}")
                     return None
     except asyncio.TimeoutError:
         logger.error(f"Timeout after {timeout}s when calling MCP tool: {tool_name}")
@@ -126,6 +152,11 @@ async def fetch_documentation_sdk(
     Returns:
         Documentation or None if fetch failed
     """
+    # Normalize library ID - remove .js extension if present
+    if library_id.endswith('.js'):
+        library_id = library_id[:-3]
+        logger.info(f"Normalized library ID to: {library_id}")
+    
     tool_args = {
         "context7CompatibleLibraryID": library_id,
         "topic": topic,
@@ -145,20 +176,42 @@ async def fetch_documentation_sdk(
             logger.warning(f"No documentation returned for library ID: {library_id}")
             return None
             
+        # Handle CallToolResult type from MCP SDK
+        if hasattr(result, 'result'):
+            # Extract the actual result from CallToolResult
+            result_data = result.result
+            logger.debug(f"Extracted result from CallToolResult: {type(result_data)}")
+            
+            # If result_data is a dictionary, use it directly
+            if isinstance(result_data, dict):
+                result = result_data
+            else:
+                # Try to parse as JSON if it's a string
+                try:
+                    if isinstance(result_data, str):
+                        result = json.loads(result_data)
+                    else:
+                        # For other types, convert to string representation
+                        result = {"documentation": str(result_data)}
+                except json.JSONDecodeError:
+                    result = {"documentation": str(result_data)}
+        
         # Format output for Aider compatibility
         if isinstance(result, dict):
             # Extract relevant fields from the result
+            documentation = result.get("documentation", "")
+            
             aider_output = {
-                "content": result.get("content", json.dumps(result, indent=2)),
+                "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
                 "library": result.get("library", library_id),
                 "snippets": result.get("snippets", []),
-                "totalTokens": result.get("totalTokens", 0),
+                "totalTokens": result.get("totalTokens", tokens),
                 "lastUpdated": result.get("lastUpdated", "")
             }
             return aider_output
         else:
             # Handle case where result is not a dictionary
-            logger.warning(f"Unexpected result type: {type(result)}")
+            logger.warning(f"Unexpected result type after processing: {type(result)}")
             return {"content": str(result), "library": library_id}
     except Exception as e:
         logger.error(f"Error fetching documentation: {e}")
@@ -182,6 +235,12 @@ async def resolve_library_id_sdk(
     Returns:
         Resolved library ID or None if resolution failed
     """
+    # Normalize library name - remove .js extension if present
+    if library_name.endswith('.js'):
+        normalized_name = library_name[:-3]
+        logger.info(f"Normalized library name from '{library_name}' to '{normalized_name}'")
+        library_name = normalized_name
+    
     tool_args = {
         "libraryName": library_name
     }
@@ -189,14 +248,34 @@ async def resolve_library_id_sdk(
     result = await call_mcp_tool(
         command=command,
         args=args,
-        tool_name="resolve-library-id",  # Changed from resolve-library to resolve-library-id
+        tool_name="resolve-library-id",
         tool_args=tool_args,
         timeout=timeout
     )
     
-    if result and isinstance(result, dict):
+    if not result:
+        return None
+    
+    # Handle CallToolResult type from MCP SDK
+    if hasattr(result, 'result'):
+        result_data = result.result
+        logger.debug(f"Extracted result from CallToolResult: {type(result_data)}")
+        
+        if isinstance(result_data, dict):
+            return result_data.get("libraryId")
+        elif isinstance(result_data, str):
+            try:
+                # Try to parse as JSON
+                json_result = json.loads(result_data)
+                if isinstance(json_result, dict):
+                    return json_result.get("libraryId")
+            except json.JSONDecodeError:
+                # If it's not JSON, return the string directly
+                return result_data
+    elif isinstance(result, dict):
         return result.get("libraryId")
-    elif result and isinstance(result, str):
+    elif isinstance(result, str):
         return result
     
+    logger.warning(f"Could not extract library ID from result type: {type(result)}")
     return None
