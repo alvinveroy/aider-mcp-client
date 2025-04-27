@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mcp_client"
+name = "mcp-client"
 version = "0.1.0"
 description = "A Python client for interacting with MCP (Model Control Protocol) servers"
 readme = "README.md"
@@ -22,14 +22,16 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Operating System :: OS Independent",
 ]
+keywords = ["mcp", "client", "documentation", "aider"]
 
 dependencies = [
     "requests>=2.25.0",
 ]
 
 [project.scripts]
-mcp_client = "mcp_client.client:main"
+mcp-client = "mcp_client.client:main"
 
 [project.urls]
-Homepage = "https://github.com/alvinveroy/mcp_client"
-"Bug Tracker" = "https://github.com/alvinveroy/mcp_client/issues"
+Homepage = "https://github.com/alvinveroy/mcp-client"
+"Bug Tracker" = "https://github.com/alvinveroy/mcp-client/issues"
+"PyPI" = "https://pypi.org/project/mcp-client/"

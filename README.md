@@ -2,6 +2,8 @@
 
 A Python client for interacting with MCP (Model Control Protocol) servers, with Aider integration support. This client primarily focuses on fetching documentation from Context7 MCP servers.
 
+[![PyPI version](https://badge.fury.io/py/mcp-client.svg)](https://badge.fury.io/py/mcp-client)
+
 ## Features
 
 - Simple configuration via JSON
@@ -108,6 +110,26 @@ python -m unittest discover tests
 - `mcp_client/client.py`: Main client implementation with CLI interface
 - `mcp_client/config.json`: Default configuration template
 - `tests/`: Unit tests
+
+### Publishing to PyPI
+
+To publish updates to PyPI:
+
+```bash
+# Install build tools
+pip install --upgrade build twine
+
+# Build the package
+python -m build
+
+# Upload to PyPI
+python -m twine upload dist/*
+```
+
+For test uploads, use the TestPyPI repository:
+```bash
+python -m twine upload --repository testpypi dist/*
+```
 
 ### Contributing
 1. Fork the repository
