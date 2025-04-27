@@ -45,6 +45,13 @@ python -m mcp_client.client <command> [args...]
 
 Example commands:
 ```bash
+# Show version information
+mcp_client
+# or
+mcp_client -v
+# or
+mcp_client --version
+
 # Fetch documentation for a specific library
 mcp_client fetch vercel/nextjs
 
@@ -81,13 +88,22 @@ echo '{
 
 ## Available Commands
 
+- `version`: Display version information
+  ```bash
+  mcp_client
+  # or
+  mcp_client -v
+  # or
+  mcp_client --version
+  ```
+
 - `fetch`: Retrieve documentation for a specific library
   ```bash
-  python -m mcp_client.client fetch <library_id> [--topic "topic"] [--tokens 5000]
+  mcp_client fetch <library_id> [--topic "topic"] [--tokens 5000]
   ```
   or
   ```bash
-  aider-mcp-client fetch <library_id> [--topic "topic"] [--tokens 5000]
+  python -m mcp_client.client fetch <library_id> [--topic "topic"] [--tokens 5000]
   ```
 
 ## Aider Integration

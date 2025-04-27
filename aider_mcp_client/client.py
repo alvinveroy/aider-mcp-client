@@ -5,6 +5,15 @@ import sys
 import time
 import os
 from pathlib import Path
+from aider_mcp_client import __version__
+
+def verbose():
+    """Display version information and other details."""
+    print(f"Aider MCP Client v{__version__}")
+    print("A Python client for interacting with MCP (Model Control Protocol) servers")
+    print("Default server: Context7 MCP")
+    print("\nUsage: mcp_client <command> [args...]")
+    print("For help: mcp_client --help")
 
 def load_config():
     """Load MCP server configuration from ~/.aider-mcp-client/config.json or return default."""
@@ -125,11 +134,16 @@ def main():
     fetch_parser.add_argument("library_id", help="Library ID (e.g., vercel/nextjs)")
     fetch_parser.add_argument("--topic", default="", help="Topic to filter documentation (optional)")
     fetch_parser.add_argument("--tokens", type=int, default=5000, help="Maximum tokens (default: 5000)")
+    parser.add_argument("-v", "--version", action="store_true", help="Show version information")
 
     args = parser.parse_args()
 
+    if args.version:
+        verbose()
+        return
+
     if not args.command:
-        parser.print_help()
+        verbose()
         return
 
     if args.command == "fetch":
