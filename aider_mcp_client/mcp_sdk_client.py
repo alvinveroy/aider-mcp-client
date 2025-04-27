@@ -194,37 +194,35 @@ async def fetch_documentation_sdk(
             # Debug the full result object to understand its structure
             logger.debug(f"CallToolResult attributes: {dir(result)}")
             
-            # For Context7, the documentation is often in the content field of the result
-            if hasattr(result, 'content'):
-                logger.debug(f"Found content directly in CallToolResult")
-                documentation = result.content
-                return {
-                    "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
-                    "library": library_id,
-                    "snippets": getattr(result, 'snippets', []),
-                    "totalTokens": getattr(result, 'totalTokens', tokens),
-                    "lastUpdated": getattr(result, 'lastUpdated', "")
-                }
-            
-            # Try to access the result as a dictionary using __dict__
-            if hasattr(result, '__dict__'):
-                result_dict = result.__dict__
-                logger.debug(f"Result __dict__: {result_dict}")
-                if 'content' in result_dict:
-                    documentation = result_dict['content']
-                    return {
-                        "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
-                        "library": library_id,
-                        "snippets": result_dict.get('snippets', []),
-                        "totalTokens": result_dict.get('totalTokens', tokens),
-                        "lastUpdated": result_dict.get('lastUpdated', "")
-                    }
-            
-            # Extract the actual result from CallToolResult
+            # Extract the actual result data from CallToolResult
             result_data = result.result
             logger.debug(f"Extracted result from CallToolResult: {type(result_data)}")
             
-            # If result_data has __dict__, try to extract content from it
+            # For Context7, the documentation is in the result data
+            if isinstance(result_data, dict) and "content" in result_data:
+                logger.debug(f"Found content in result dictionary")
+                documentation = result_data["content"]
+                return {
+                    "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
+                    "library": library_id,
+                    "snippets": result_data.get('snippets', []),
+                    "totalTokens": result_data.get('totalTokens', tokens),
+                    "lastUpdated": result_data.get('lastUpdated', "")
+                }
+            
+            # If result_data has content attribute, use that
+            if hasattr(result_data, 'content'):
+                logger.debug(f"Found content attribute in result data")
+                documentation = result_data.content
+                return {
+                    "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
+                    "library": library_id,
+                    "snippets": getattr(result_data, 'snippets', []),
+                    "totalTokens": getattr(result_data, 'totalTokens', tokens),
+                    "lastUpdated": getattr(result_data, 'lastUpdated', "")
+                }
+            
+            # Try to access the result data as a dictionary using __dict__
             if hasattr(result_data, '__dict__'):
                 result_data_dict = result_data.__dict__
                 logger.debug(f"Result data __dict__: {result_data_dict}")
@@ -338,8 +336,46 @@ async def fetch_documentation_sdk(
             return aider_output
         else:
             # Handle case where result is not a dictionary
-            logger.warning(f"Unexpected result type after processing: {type(result)}")
-            # Try to extract content if it's a CallToolResult or similar object
+            logger.debug(f"Processing non-dictionary result type: {type(result)}")
+            
+            # If it's a CallToolResult, extract the result field
+            if hasattr(result, 'result'):
+                result_data = result.result
+                logger.debug(f"Extracted result data type: {type(result_data)}")
+                
+                # If result_data is a dictionary with content
+                if isinstance(result_data, dict) and "content" in result_data:
+                    documentation = result_data["content"]
+                    return {
+                        "content": documentation if isinstance(documentation, str) else json.dumps(documentation, indent=2),
+                        "library": library_id,
+                        "snippets": result_data.get('snippets', []),
+                        "totalTokens": result_data.get('totalTokens', tokens),
+                        "lastUpdated": result_data.get('lastUpdated', "")
+                    }
+                
+                # If result_data has content attribute
+                if hasattr(result_data, 'content'):
+                    content = result_data.content
+                    if isinstance(content, list):
+                        # Extract text from TextContent objects
+                        text_content = []
+                        for item in content:
+                            if hasattr(item, 'text'):
+                                text_content.append(item.text)
+                        documentation = "\n".join(text_content)
+                    else:
+                        documentation = str(content)
+                    
+                    return {
+                        "content": documentation,
+                        "library": library_id,
+                        "snippets": getattr(result_data, 'snippets', []),
+                        "totalTokens": getattr(result_data, 'totalTokens', tokens),
+                        "lastUpdated": getattr(result_data, 'lastUpdated', "")
+                    }
+            
+            # Try to extract content directly from result
             if hasattr(result, 'content'):
                 content = result.content
                 if isinstance(content, list):
@@ -355,12 +391,13 @@ async def fetch_documentation_sdk(
                 return {
                     "content": documentation,
                     "library": library_id,
-                    "snippets": [],
-                    "totalTokens": tokens,
-                    "lastUpdated": ""
+                    "snippets": getattr(result, 'snippets', []),
+                    "totalTokens": getattr(result, 'totalTokens', tokens),
+                    "lastUpdated": getattr(result, 'lastUpdated', "")
                 }
-            else:
-                return {"content": str(result), "library": library_id}
+            
+            # Last resort: convert to string
+            return {"content": str(result), "library": library_id}
     except Exception as e:
         logger.error(f"Error fetching documentation: {e}")
         return None
@@ -408,29 +445,28 @@ async def resolve_library_id_sdk(
     if hasattr(result, 'result'):
         # Debug the full result object to understand its structure
         logger.debug(f"CallToolResult attributes: {dir(result)}")
-        
-        # For Context7, the result is often a CallToolResult with a libraryId field
-        if hasattr(result, 'libraryId'):
-            logger.debug(f"Found libraryId directly in CallToolResult: {result.libraryId}")
-            return result.libraryId
-        
-        # Try to access the result as a dictionary using __dict__
-        if hasattr(result, '__dict__'):
-            result_dict = result.__dict__
-            logger.debug(f"Result __dict__: {result_dict}")
-            if 'libraryId' in result_dict:
-                return result_dict['libraryId']
-        
-        # Extract the actual result data
+                
+        # For Context7, directly access the result field which contains the actual data
         result_data = result.result
         logger.debug(f"Extracted result from CallToolResult: {type(result_data)}")
-        
-        # If result_data has __dict__, try to extract libraryId from it
+                
+        # Check if result_data is a dictionary with libraryId
+        if isinstance(result_data, dict) and "libraryId" in result_data:
+            logger.debug(f"Found libraryId in result dictionary: {result_data['libraryId']}")
+            return result_data["libraryId"]
+                
+        # If result_data has a libraryId attribute, use that
+        if hasattr(result_data, 'libraryId'):
+            library_id = result_data.libraryId
+            logger.debug(f"Found libraryId attribute in result: {library_id}")
+            return library_id
+                
+        # Try to access the result as a dictionary using __dict__
         if hasattr(result_data, '__dict__'):
-            result_data_dict = result_data.__dict__
-            logger.debug(f"Result data __dict__: {result_data_dict}")
-            if 'libraryId' in result_data_dict:
-                return result_data_dict['libraryId']
+            result_dict = result_data.__dict__
+            logger.debug(f"Result data __dict__: {result_dict}")
+            if 'libraryId' in result_dict:
+                return result_dict['libraryId']
         
         # If it's a dictionary, look for libraryId
         if isinstance(result_data, dict):
