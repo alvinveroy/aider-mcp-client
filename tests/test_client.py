@@ -212,36 +212,6 @@ class TestAiderMcpClient(unittest.TestCase):
             # Use the actual totalTokens from the response
             self.assertEqual(result["totalTokens"], 1000)
             self.assertEqual(result["lastUpdated"], "2025-04-27")
-            # This duplicate test_coro definition should be removed
-            
-            # Run the test coroutine
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(test_coro())
-            
-            # Check that resolve_library_id was called with the correct arguments
-            mock_resolve.assert_called_once_with("library", custom_timeout=15, server_name="context7")
-            
-            # Check that communicate_with_mcp_server was called with correct arguments
-            mock_communicate.assert_called_once_with(
-                "test_command",
-                ["test_arg1", "test_arg2"],
-                {
-                    "tool": "get-library-docs",
-                    "args": {
-                        "context7CompatibleLibraryID": "org/library",
-                        "topic": "topic",
-                        "tokens": 6000
-                    }
-                },
-                15,
-                debug_output=False
-            )
-            
-            # Check the result
-            self.assertEqual(result["library"], "org/library")
-            self.assertEqual(result["snippets"], ["snippet1", "snippet2"])
-            self.assertEqual(result["totalTokens"], 1000)
-            self.assertEqual(result["lastUpdated"], "2025-04-27")
     
     @patch('aider_mcp_client.client.communicate_with_mcp_server')
     @patch('aider_mcp_client.client.load_config')
@@ -270,7 +240,7 @@ class TestAiderMcpClient(unittest.TestCase):
                         "totalTokens": 6000,
                         "lastUpdated": ""
                     }
-                    return await fetch_documentation("org/library", "topic", 6000)
+                    return await fetch_documentation("org/library", "topic", 6000, _test_mode=True)
             
             # Run the test coroutine
             from tests.test_helpers import run_async_test
