@@ -620,6 +620,16 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
 
         # Print JSON output to console
         print(json.dumps(aider_output, indent=2, ensure_ascii=False))
+        
+        # Save documentation to a JSON file
+        output_file = f"{library_id.replace('/', '_')}_docs.json"
+        try:
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(aider_output, f, indent=2, ensure_ascii=False)
+            logger.info(f"Documentation saved to {output_file}")
+        except Exception as e:
+            logger.error(f"Error saving documentation to file: {str(e)}")
+            
         return aider_output
     
     except Exception as e:
@@ -658,6 +668,7 @@ async def async_main():
     fetch_parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
     fetch_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     fetch_parser.add_argument("--json", action="store_true", help="Force JSON output format")
+    fetch_parser.add_argument("--output", help="Output file path (default: <library_id>_docs.json)")
     
     # Resolve command
     resolve_parser = subparsers.add_parser("resolve", help="Resolve a library name to a Context7-compatible ID")
@@ -708,8 +719,22 @@ async def async_main():
                 config = load_config()
                 timeout = config.get("mcpServers", {}).get(server_name, {}).get("timeout", 30)
             
-            await fetch_documentation(args.library_id, args.topic, args.tokens, 
+            # Get output file path if specified
+            output_file = None
+            if hasattr(args, 'output') and args.output:
+                output_file = args.output
+                
+            result = await fetch_documentation(args.library_id, args.topic, args.tokens, 
                                      custom_timeout=timeout, server_name=server_name)
+            
+            # If output file is specified, save to that file instead of default
+            if output_file and result:
+                try:
+                    with open(output_file, "w", encoding="utf-8") as f:
+                        json.dump(result, f, indent=2, ensure_ascii=False)
+                    logger.info(f"Documentation saved to {output_file}")
+                except Exception as e:
+                    logger.error(f"Error saving documentation to specified file: {str(e)}")
         
         elif args.command == "resolve":
             # Use command-line timeout if provided
