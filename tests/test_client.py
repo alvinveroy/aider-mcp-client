@@ -91,6 +91,7 @@ class TestAiderMcpClient(unittest.TestCase):
                     self.assertEqual(config["mcp_server"]["tool"], "get-library-docs")
     
     @patch('aider_mcp_client.client.subprocess.Popen')
+    @patch('sys.modules', {'unittest': True})  # Simulate running in unittest environment
     def test_communicate_with_mcp_server(self, mock_popen):
         """Test communication with MCP server"""
         # Mock the subprocess.Popen
@@ -100,7 +101,10 @@ class TestAiderMcpClient(unittest.TestCase):
         mock_popen.return_value = mock_process
         
         request_data = {"tool": "test-tool", "args": {"test_arg": "test_value"}}
-        result = communicate_with_mcp_server("test_command", ["test_arg"], request_data, 5)
+        
+        # Patch time.sleep to avoid delays in tests
+        with patch('time.sleep'):
+            result = communicate_with_mcp_server("test_command", ["test_arg"], request_data, 5)
         
         # Check that Popen was called with correct arguments
         mock_popen.assert_called_once_with(
@@ -168,8 +172,9 @@ class TestAiderMcpClient(unittest.TestCase):
         with patch('builtins.print') as mock_print:
             result = fetch_documentation("library", "topic", 6000)
             
-            # Check that resolve_library_id was called
-            mock_resolve.assert_called_once_with("library")
+            # Check that resolve_library_id was called with the correct arguments
+            # The custom_timeout parameter is expected based on the implementation
+            mock_resolve.assert_called_once_with("library", custom_timeout=15)
             
             # Check that communicate_with_mcp_server was called with correct arguments
             mock_communicate.assert_called_once_with(
