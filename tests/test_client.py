@@ -340,7 +340,8 @@ class TestAiderMcpClient(unittest.TestCase):
                             "libraryName": "react"
                         }
                     },
-                    15
+                    15,
+                    debug_output=False
                 ),
                 # Second call for fetching documentation
                 unittest.mock.call(
@@ -354,7 +355,8 @@ class TestAiderMcpClient(unittest.TestCase):
                             "tokens": 5000
                         }
                     },
-                    15
+                    15,
+                    debug_output=False
                 )
             ]
             
