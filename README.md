@@ -35,28 +35,64 @@ pip install -e .
 After installation, you can use the command-line interface:
 
 ```bash
-aider_mcp_client <command> [args...]
+aider_mcp_client <command> [options] [args...]
 ```
 
 Or as a module:
 ```bash
-python -m aider_mcp_client.client <command> [args...]
+python -m aider_mcp_client <command> [options] [args...]
 ```
 
-Example commands:
+### Command-line Options
+
+```
+usage: aider_mcp_client [-h] [-v] [--debug] [--verbose] [--quiet] [--server SERVER] [--json]
+                        {fetch,resolve,list} ...
+
+Aider MCP client for fetching library documentation.
+
+positional arguments:
+  {fetch,resolve,list}  Available commands
+    fetch               Fetch documentation for a library
+    resolve             Resolve a library name to a Context7-compatible ID
+    list                List supported libraries
+
+options:
+  -h, --help            show this help message and exit
+  -v, --version         Show version information
+  --debug               Enable debug logging
+  --verbose             Show detailed logs in console
+  --quiet               Suppress informational output
+  --server SERVER       MCP server to use (default: context7)
+  --json                Force JSON output format
+```
+
+### Example Commands
+
 ```bash
 # Show version information
-aider_mcp_client
-# or
 aider_mcp_client -v
-# or
-aider_mcp_client --version
+
+# Show help information
+aider_mcp_client --help
+
+# List all supported libraries
+aider_mcp_client list
+
+# Resolve a library name to a Context7-compatible ID
+aider_mcp_client resolve react
 
 # Fetch documentation for a specific library
 aider_mcp_client fetch vercel/nextjs
 
 # Fetch documentation with a specific topic and token limit
 aider_mcp_client fetch vercel/nextjs --topic "routing" --tokens 10000
+
+# Use a specific server with JSON output
+aider_mcp_client fetch react --server context7 --json
+
+# Enable verbose logging
+aider_mcp_client fetch react --verbose
 ```
 
 ## Configuration
