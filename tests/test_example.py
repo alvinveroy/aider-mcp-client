@@ -51,19 +51,19 @@ class TestMcpExample(unittest.TestCase):
                 self.assertEqual(result["library"], mock_response["library"])
                 self.assertEqual(result["snippets"], mock_response["snippets"])
                 self.assertEqual(result["totalTokens"], mock_response["totalTokens"])
-                    mock_call_tool.assert_called_once_with(
-                        command="npx",
-                        args=["-y", "@upstash/context7-mcp@latest"],
-                        tool_name="get-library-docs",
-                        tool_args={
-                            "context7CompatibleLibraryID": "vercel/nextjs",
-                            "topic": "routing",
-                            "tokens": 1000  # Use the value passed to the function
-                        },
-                        timeout=60,  # The fetch_documentation_sdk function uses a 60 second timeout
-                        new_event_loop=False,
-                        _is_test=True
-                    )
+                mock_call_tool.assert_called_once_with(
+                    command="npx",
+                    args=["-y", "@upstash/context7-mcp@latest"],
+                    tool_name="get-library-docs",
+                    tool_args={
+                        "context7CompatibleLibraryID": "vercel/nextjs",
+                        "topic": "routing",
+                        "tokens": 1000  # Use the value passed to the function
+                    },
+                    timeout=60,  # The fetch_documentation_sdk function uses a 60 second timeout
+                    new_event_loop=False,
+                    _is_test=True
+                )
         
         # Run the test coroutine
         from tests.test_helpers import run_async_test
