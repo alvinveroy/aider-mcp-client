@@ -729,7 +729,10 @@ def display_documentation(response, library_id):
 async def async_main():
     """Async entry point for the CLI."""
     # Set up command-line argument parsing
-    parser = argparse.ArgumentParser(description="Aider MCP client for fetching library documentation.")
+    parser = argparse.ArgumentParser(
+        prog="aider_mcp_client",
+        description="Aider MCP client for fetching library documentation."
+    )
     
     # Global options that should be available for all commands
     parser.add_argument("-v", "--version", action="store_true", help="Show version information")
@@ -743,31 +746,20 @@ async def async_main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # Fetch command
-    fetch_parser = subparsers.add_parser("fetch", help="Fetch JSON documentation for a library")
-    fetch_parser.add_argument("library_id", help="Library ID or name (e.g., vercel/nextjs or just nextjs)")
-    fetch_parser.add_argument("--topic", default="", help="Topic to filter documentation (optional)")
+    fetch_parser = subparsers.add_parser("fetch", help="Fetch documentation for a library")
+    fetch_parser.add_argument("library_id", help="Library ID or name (e.g., vercel/nextjs or react)")
+    fetch_parser.add_argument("--topic", default="", help="Topic to filter documentation")
     fetch_parser.add_argument("--tokens", type=int, default=5000, help="Maximum tokens (default: 5000)")
-    fetch_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
-    fetch_parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
-    fetch_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    fetch_parser.add_argument("--verbose", action="store_true", help="Show detailed logs in console")
-    fetch_parser.add_argument("--json", action="store_true", help="Force JSON output format")
+    fetch_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds")
     fetch_parser.add_argument("--output", help="Output file path (default: <library_id>_docs.json)")
     
     # Resolve command
     resolve_parser = subparsers.add_parser("resolve", help="Resolve a library name to a Context7-compatible ID")
-    resolve_parser.add_argument("library_name", help="Library name to resolve (e.g., nextjs)")
-    resolve_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
-    resolve_parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
-    resolve_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    resolve_parser.add_argument("--verbose", action="store_true", help="Show detailed logs in console")
-    resolve_parser.add_argument("--json", action="store_true", help="Force JSON output format")
+    resolve_parser.add_argument("library_name", help="Library name to resolve (e.g., react)")
+    resolve_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds")
     
     # List command
     list_parser = subparsers.add_parser("list", help="List supported libraries")
-    list_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    list_parser.add_argument("--verbose", action="store_true", help="Show detailed logs in console")
-    list_parser.add_argument("--json", action="store_true", help="Force JSON output format")
     
     args = parser.parse_args()
 
