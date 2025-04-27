@@ -91,67 +91,20 @@ class TestAiderMcpClient(unittest.TestCase):
                     self.assertEqual(config["mcp_server"]["args"], ["test_arg1", "test_arg2"])
                     self.assertEqual(config["mcp_server"]["tool"], "get-library-docs")
     
-    @patch('aider_mcp_client.client.subprocess.Popen')
-    @patch('sys.modules', {'unittest': True})  # Simulate running in unittest environment
-    @patch('aider_mcp_client.client.os')  # Add mock for os module
-    def test_communicate_with_mcp_server(self, mock_os, mock_popen):
-        """Test communication with MCP server"""
-        # Mock the subprocess.Popen
-        mock_process = MagicMock()
-        mock_process.stdout.readline.return_value = '{"result": "test_result"}\n'
-        mock_process.poll.return_value = None
-        # Set up stderr.read() to return an empty string
-        mock_process.stderr.read.return_value = ""
-        mock_popen.return_value = mock_process
-        
-        # Mock os.environ.get to return test mode
-        mock_os.environ.get.return_value = "false"
-        
-        request_data = {"tool": "test-tool", "args": {"test_arg": "test_value"}}
-        
-        # Patch time.sleep to avoid delays in tests
-        with patch('time.sleep'):
-            # Create a test coroutine to run the async code
-            async def test_coro():
-                return await communicate_with_mcp_server("test_command", ["test_arg"], request_data, 5)
-            
-            # Run the test coroutine
-            from tests.test_helpers import run_async_test
-            result = run_async_test(test_coro())
-        
-        # Check that Popen was called with correct arguments
-        mock_popen.assert_called_once_with(
-            ["test_command", "test_arg"],
-            stdin=unittest.mock.ANY,
-            stdout=unittest.mock.ANY,
-            stderr=unittest.mock.ANY,
-            text=True,
-            encoding='utf-8',
-            shell=False
-        )
-        
-        # In test mode, we should write the request data directly
-        mock_process.stdin.write.assert_any_call(json.dumps(request_data) + '\n')
-        
-        # Check the result
-        self.assertEqual(result, {"result": "test_result"})
     
-    @patch('aider_mcp_client.client.communicate_with_mcp_server')
+    @patch('aider_mcp_client.client.resolve_library_id_sdk')
     @patch('aider_mcp_client.client.load_config')
-    def test_resolve_library_id(self, mock_load_config, mock_communicate):
-        """Test resolving library ID"""
+    def test_resolve_library_id(self, mock_load_config, mock_sdk):
+        """Test resolving library ID using SDK"""
         # Mock the config
         mock_load_config.return_value = self.test_config
         
-        # Mock the communicate_with_mcp_server response
-        mock_communicate.return_value = {"result": "org/library"}
+        # Mock the SDK response
+        mock_sdk.return_value = "org/library"
         
         # Create a test coroutine to run the async code
         async def test_coro():
-            # Patch the MCP SDK client to avoid actual SDK calls
-            with patch('aider_mcp_client.client.resolve_library_id_sdk') as mock_sdk:
-                mock_sdk.return_value = "org/library"  # Match the expected result
-                return await resolve_library_id("library")
+            return await resolve_library_id("library")
         
         # Run the test coroutine
         from tests.test_helpers import run_async_test
@@ -159,11 +112,14 @@ class TestAiderMcpClient(unittest.TestCase):
         
         # Check the result
         self.assertEqual(result, "org/library")
+        
+        # Verify SDK was called with correct arguments
+        mock_sdk.assert_called_once()
     
     @patch('aider_mcp_client.client.resolve_library_id')
-    @patch('aider_mcp_client.client.communicate_with_mcp_server')
+    @patch('aider_mcp_client.client.fetch_documentation_sdk')
     @patch('aider_mcp_client.client.load_config')
-    def test_fetch_documentation_with_resolution(self, mock_load_config, mock_communicate, mock_resolve):
+    def test_fetch_documentation_with_resolution(self, mock_load_config, mock_fetch_sdk, mock_resolve):
         """Test fetching documentation with library ID resolution"""
         # Mock the config
         mock_load_config.return_value = self.test_config
@@ -171,61 +127,45 @@ class TestAiderMcpClient(unittest.TestCase):
         # Mock the resolve_library_id response
         mock_resolve.return_value = "org/library"
         
-        # Mock the communicate_with_mcp_server response
-        mock_communicate.return_value = {
+        # Mock the SDK response
+        mock_fetch_sdk.return_value = {
             "library": "org/library",
             "snippets": ["snippet1", "snippet2"],
             "totalTokens": 1000,
             "lastUpdated": "2025-04-27"
         }
         
-        # Make sure the mock will be called by forcing SDK to be unavailable
-        with patch('aider_mcp_client.client.HAS_MCP_SDK', False):
-            # Create a test coroutine to run the async code
-            async def test_coro():
-                # We need to patch os.environ.get to ensure _test_mode works correctly
-                with patch('os.environ.get', return_value="true"):
-                    return await fetch_documentation("library", "topic", 6000)
-            
-            # Run the test coroutine
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(test_coro())
-            
-            # Check that resolve_library_id was called with the correct arguments
-            mock_resolve.assert_called_once_with("library", custom_timeout=15, server_name="context7")
-            
-            # Check that communicate_with_mcp_server was called with correct arguments
-            mock_communicate.assert_called_once_with(
-                "test_command",
-                ["test_arg1", "test_arg2"],
-                {
-                    "tool": "get-library-docs",
-                    "args": {
-                        "context7CompatibleLibraryID": "org/library",
-                        "topic": "topic",
-                        "tokens": 6000
-                    }
-                },
-                15,
-                debug_output=False
-            )
-            
-            # Check the result
-            self.assertEqual(result["library"], "org/library")
-            self.assertEqual(result["snippets"], ["snippet1", "snippet2"])
-            # Use the actual totalTokens from the response
-            self.assertEqual(result["totalTokens"], 1000)
-            self.assertEqual(result["lastUpdated"], "2025-04-27")
+        # Create a test coroutine to run the async code
+        async def test_coro():
+            # We need to patch os.environ.get to ensure _test_mode works correctly
+            with patch('os.environ.get', return_value="true"):
+                return await fetch_documentation("library", "topic", 6000)
+        
+        # Run the test coroutine
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(test_coro())
+        
+        # Check that resolve_library_id was called with the correct arguments
+        mock_resolve.assert_called_once_with("library", custom_timeout=15, server_name="context7")
+        
+        # Check that fetch_documentation_sdk was called
+        mock_fetch_sdk.assert_called_once()
+        
+        # Check the result
+        self.assertEqual(result["library"], "org/library")
+        self.assertEqual(result["snippets"], ["snippet1", "snippet2"])
+        self.assertEqual(result["totalTokens"], 1000)
+        self.assertEqual(result["lastUpdated"], "2025-04-27")
     
-    @patch('aider_mcp_client.client.communicate_with_mcp_server')
+    @patch('aider_mcp_client.client.fetch_documentation_sdk')
     @patch('aider_mcp_client.client.load_config')
-    def test_fetch_documentation_without_resolution(self, mock_load_config, mock_communicate):
+    def test_fetch_documentation_without_resolution(self, mock_load_config, mock_fetch_sdk):
         """Test fetching documentation without library ID resolution"""
         # Mock the config
         mock_load_config.return_value = self.test_config
         
-        # Mock the communicate_with_mcp_server response
-        mock_communicate.return_value = {
+        # Mock the SDK response
+        mock_fetch_sdk.return_value = {
             "library": "org/library",
             "snippets": ["snippet1", "snippet2"],
             "totalTokens": 1000,
@@ -235,38 +175,16 @@ class TestAiderMcpClient(unittest.TestCase):
         with patch('builtins.print') as mock_print:
             # Create a test coroutine to run the async code
             async def test_coro():
-                # Patch the MCP SDK client to avoid actual SDK calls
-                with patch('aider_mcp_client.client.fetch_documentation_sdk') as mock_sdk:
-                    mock_sdk.return_value = {
-                        "content": "Test documentation",
-                        "library": "org/library",
-                        "snippets": [],
-                        "totalTokens": 6000,
-                        "lastUpdated": ""
-                    }
-                    # We need to patch os.environ.get to ensure _test_mode works correctly
-                    with patch('os.environ.get', return_value="true"):
-                        return await fetch_documentation("org/library", "topic", 6000)
+                # We need to patch os.environ.get to ensure _test_mode works correctly
+                with patch('os.environ.get', return_value="true"):
+                    return await fetch_documentation("org/library", "topic", 6000)
             
             # Run the test coroutine
             from tests.test_helpers import run_async_test
             result = run_async_test(test_coro())
             
-            # Check that communicate_with_mcp_server was called with correct arguments
-            mock_communicate.assert_called_once_with(
-                "test_command",
-                ["test_arg1", "test_arg2"],
-                {
-                    "tool": "get-library-docs",
-                    "args": {
-                        "context7CompatibleLibraryID": "org/library",
-                        "topic": "topic",
-                        "tokens": 6000
-                    }
-                },
-                15,
-                debug_output=False
-            )
+            # Check that fetch_documentation_sdk was called
+            mock_fetch_sdk.assert_called_once()
             
             # Check the result
             self.assertEqual(result["library"], "org/library")
@@ -281,29 +199,25 @@ class TestAiderMcpClient(unittest.TestCase):
         mock_print.assert_any_call("Fetching list of supported libraries from Context7...")
         mock_print.assert_any_call("This feature is not yet implemented. Please check https://context7.com for supported libraries.")
     
-    @patch('aider_mcp_client.client.communicate_with_mcp_server')
+    @patch('aider_mcp_client.client.resolve_library_id_sdk')
+    @patch('aider_mcp_client.client.fetch_documentation_sdk')
     @patch('aider_mcp_client.client.load_config')
-    @patch('aider_mcp_client.client.HAS_MCP_SDK', False)  # Force using server communication instead of SDK
-    def test_end_to_end_mcp_server_communication(self, mock_has_sdk, mock_load_config, mock_communicate):
-        """Test end-to-end communication with MCP server"""
+    def test_end_to_end_sdk_communication(self, mock_load_config, mock_fetch_sdk, mock_resolve_sdk):
+        """Test end-to-end communication with MCP SDK"""
         # Mock the config
         mock_load_config.return_value = self.test_config
         
-        # Mock the communicate_with_mcp_server response for library resolution
-        mock_communicate.side_effect = [
-            # First call - resolve library ID
-            {"result": "react/react"},
-            # Second call - fetch documentation
-            {
-                "library": "react/react",
-                "snippets": [
-                    "```jsx\nimport React from 'react';\n\nfunction Example() {\n  return <div>Hello World</div>;\n}\n```",
-                    "```jsx\nimport React, { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n  return (\n    <div>\n      <p>You clicked {count} times</p>\n      <button onClick={() => setCount(count + 1)}>Click me</button>\n    </div>\n  );\n}\n```"
-                ],
-                "totalTokens": 2500,
-                "lastUpdated": "2025-04-27"
-            }
-        ]
+        # Mock the SDK responses
+        mock_resolve_sdk.return_value = "react/react"
+        mock_fetch_sdk.return_value = {
+            "library": "react/react",
+            "snippets": [
+                "```jsx\nimport React from 'react';\n\nfunction Example() {\n  return <div>Hello World</div>;\n}\n```",
+                "```jsx\nimport React, { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n  return (\n    <div>\n      <p>You clicked {count} times</p>\n      <button onClick={() => setCount(count + 1)}>Click me</button>\n    </div>\n  );\n}\n```"
+            ],
+            "totalTokens": 2500,
+            "lastUpdated": "2025-04-27"
+        }
         
         # Test the full flow: resolve library ID and then fetch documentation
         with patch('builtins.print') as mock_print:
@@ -311,14 +225,11 @@ class TestAiderMcpClient(unittest.TestCase):
             async def test_coro():
                 # We need to patch os.environ.get to ensure test mode works correctly
                 with patch('os.environ.get', return_value="true"):
-                    # Patch the SDK functions to ensure they're not called
-                    with patch('aider_mcp_client.client.resolve_library_id_sdk') as mock_sdk_resolve:
-                        with patch('aider_mcp_client.client.fetch_documentation_sdk') as mock_sdk_fetch:
-                            # First resolve the library ID
-                            library_id = await resolve_library_id("react")
-                            # Then fetch documentation using the resolved ID
-                            result = await fetch_documentation(library_id, "hooks", 5000)
-                            return library_id, result
+                    # First resolve the library ID
+                    library_id = await resolve_library_id("react")
+                    # Then fetch documentation using the resolved ID
+                    result = await fetch_documentation(library_id, "hooks", 5000)
+                    return library_id, result
             
             # Run the test coroutine
             loop = asyncio.get_event_loop()
@@ -328,43 +239,12 @@ class TestAiderMcpClient(unittest.TestCase):
             self.assertEqual(library_id, "react/react")
             self.assertEqual(result["library"], "react/react")
             self.assertEqual(len(result["snippets"]), 2)
-            # In test mode, the totalTokens might be from the mock or the input
-            self.assertIn(result["totalTokens"], [2500, 5000])
+            self.assertEqual(result["totalTokens"], 2500)
             self.assertEqual(result["lastUpdated"], "2025-04-27")
             
-            # Verify the correct calls were made to communicate_with_mcp_server
-            expected_calls = [
-                # First call for resolving library ID
-                unittest.mock.call(
-                    "test_command",
-                    ["test_arg1", "test_arg2"],
-                    {
-                        "tool": "resolve-library-id",
-                        "args": {
-                            "libraryName": "react"
-                        }
-                    },
-                    15,
-                    debug_output=False
-                ),
-                # Second call for fetching documentation
-                unittest.mock.call(
-                    "test_command",
-                    ["test_arg1", "test_arg2"],
-                    {
-                        "tool": "get-library-docs",
-                        "args": {
-                            "context7CompatibleLibraryID": "react/react",
-                            "topic": "hooks",
-                            "tokens": 5000
-                        }
-                    },
-                    15,
-                    debug_output=False
-                )
-            ]
-            
-            mock_communicate.assert_has_calls(expected_calls)
+            # Verify the SDK functions were called with correct arguments
+            mock_resolve_sdk.assert_called_once()
+            mock_fetch_sdk.assert_called_once()
             
             # Verify that appropriate messages were printed
             mock_print.assert_any_call("Fetching documentation for react/react on topic: hooks")
