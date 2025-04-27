@@ -52,6 +52,14 @@ async def test_context7_mcp():
             else:
                 print(f"Documentation format: {type(docs)}")
                 print(f"Documentation keys: {docs.keys() if isinstance(docs, dict) else 'N/A'}")
+                
+            # Save documentation to a file for inspection
+            with open("docs_output.txt", "w") as f:
+                if isinstance(docs, dict) and "content" in docs:
+                    f.write(str(docs["content"]))
+                else:
+                    f.write(str(docs))
+            print("Documentation saved to docs_output.txt")
         else:
             print("No documentation received")
         
