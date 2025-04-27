@@ -510,7 +510,7 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
         logger.debug(f"Traceback: {traceback.format_exc()}")
         return None
 
-async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None, server_name="context7"):
+async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None, server_name="context7", display_output=True):
     """Fetch JSON documentation from an MCP server."""
     # Load server configuration
     config = load_config()
@@ -625,8 +625,9 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
             "lastUpdated": response.get("lastUpdated", "") if isinstance(response, dict) else ""
         }
 
-        # Always display the documentation in the console
-        display_documentation(response, library_id)
+        # Display the documentation in the console if requested
+        if display_output:
+            display_documentation(response, library_id)
         
         # Save documentation to a JSON file
         output_file = f"{library_id.replace('/', '_')}_docs.json"
@@ -788,8 +789,12 @@ async def async_main():
             if hasattr(args, 'output') and args.output:
                 output_file = args.output
                 
+            # Don't display output in console if --output is specified
+            display_output = not output_file
+            
             result = await fetch_documentation(args.library_id, args.topic, args.tokens, 
-                                     custom_timeout=timeout, server_name=server_name)
+                                     custom_timeout=timeout, server_name=server_name,
+                                     display_output=display_output)
             
             # If output file is specified, save to that file instead of default
             if output_file and result:
@@ -797,10 +802,7 @@ async def async_main():
                     with open(output_file, "w", encoding="utf-8") as f:
                         json.dump(result, f, indent=2, ensure_ascii=False)
                     logger.info(f"Documentation saved to {output_file}")
-                    
-                    # Always display the documentation in console when saving to file
-                    print("\n=== Documentation saved to file, displaying content ===\n")
-                    display_documentation(result, args.library_id)
+                    print(f"Documentation saved to {output_file}")
                 except Exception as e:
                     logger.error(f"Error saving documentation to specified file: {str(e)}")
         
