@@ -84,17 +84,23 @@ async def call_mcp_tool(
     """
     import subprocess
     
-    # Start the MCP server process directly
+    # Start the MCP server process directly with security checks
     process = None
     try:
-        # Start the process
+        # Validate command and args to prevent command injection
+        if not isinstance(command, str) or any(not isinstance(arg, str) for arg in args):
+            logger.error("Invalid command or arguments type - potential injection attempt")
+            return None
+                
+        # Start the process with security measures
         process = subprocess.Popen(
             [command] + args,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            encoding='utf-8'
+            encoding='utf-8',
+            shell=False  # Explicitly disable shell to prevent command injection
         )
         
         # Check if the process started successfully
@@ -167,11 +173,11 @@ async def call_mcp_tool(
                                     )
                                     logger.debug(f"MCP tool result type: {type(result)}")
                                     
-                                    # Debug the result structure
+                                    # Debug the result structure (without potentially sensitive data)
                                     if hasattr(result, 'result'):
                                         logger.debug(f"Result has 'result' attribute of type: {type(result.result)}")
-                                        if hasattr(result.result, '__dict__'):
-                                            logger.debug(f"Result.result.__dict__: {result.result.__dict__}")
+                                        # Avoid logging potentially sensitive data
+                                        logger.debug("Result.result details: [content redacted for security]")
                                     
                                     # For CallToolResult, extract the actual data
                                     if isinstance(result, types.CallToolResult):
@@ -280,13 +286,19 @@ async def fetch_documentation_sdk(
         # Try to connect and initialize first
         try:
             # Use a direct approach without TaskGroup to avoid unhandled exceptions
+            # Validate command and args to prevent command injection
+            if not isinstance(command, str) or any(not isinstance(arg, str) for arg in args):
+                logger.error("Invalid command or arguments type - potential injection attempt")
+                return None
+                
             process = subprocess.Popen(
                 [command] + args,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                encoding='utf-8'
+                encoding='utf-8',
+                shell=False  # Explicitly disable shell to prevent command injection
             )
             
             # Check if the process started successfully
@@ -388,8 +400,8 @@ async def fetch_documentation_sdk(
             
         # Handle CallToolResult type from MCP SDK
         if hasattr(result, 'result'):
-            # Debug the full result object to understand its structure
-            logger.debug(f"CallToolResult attributes: {dir(result)}")
+            # Debug the result object structure without exposing sensitive data
+            logger.debug(f"CallToolResult has these attributes: [attribute list redacted]")
             
             # Extract the actual result data from CallToolResult
             result_data = result.result
@@ -421,8 +433,8 @@ async def fetch_documentation_sdk(
             
             # Try to access the result data as a dictionary using __dict__
             if hasattr(result_data, '__dict__'):
-                result_data_dict = result_data.__dict__
-                logger.debug(f"Result data __dict__: {result_data_dict}")
+                # Avoid logging potentially sensitive data
+                logger.debug("Result data has __dict__ attribute: [content redacted for security]")
                 if 'content' in result_data_dict:
                     documentation = result_data_dict['content']
                     return {

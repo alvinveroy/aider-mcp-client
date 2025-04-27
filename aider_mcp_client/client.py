@@ -105,16 +105,28 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
         return await communicate_with_mcp_sdk(command, args, request_data, timeout)
     
     try:
-        # Start the MCP server process
+        # Start the MCP server process with security checks
+        # Validate command and args to prevent command injection
+        if not isinstance(command, str) or any(not isinstance(arg, str) for arg in args):
+            logger.error("Invalid command or arguments type - potential injection attempt")
+            return None
+            
+        # Log the command being executed
         logger.debug(f"Starting MCP server process: {command} {' '.join(args)}")
-        process = subprocess.Popen(
-            [command] + args,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding='utf-8'
-        )
+        
+        try:
+            process = subprocess.Popen(
+                [command] + args,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                shell=False  # Explicitly disable shell to prevent command injection
+            )
+        except (subprocess.SubprocessError, OSError) as e:
+            logger.error(f"Failed to start subprocess: {e}")
+            return None
 
         # Wait for server to initialize (check stderr for startup message)
         start_time = time.time()
@@ -387,7 +399,8 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
                     keys = list(msg.keys())
                     print(f"Message {i}: {type(msg)} - Keys: {keys}")
                 else:
-                    print(f"Message {i}: {type(msg)} - {str(msg)[:100]}...")
+                    # Avoid printing potentially sensitive data
+                    print(f"Message {i}: {type(msg)} - [content redacted]")
                 
         if response:
             # Extract the result from the MCP response
@@ -603,8 +616,12 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         }
     }
     
-    # Log the request for debugging
-    logger.debug(f"Sending request to MCP server: {json.dumps(request_data)}")
+    # Log the request for debugging (without potentially sensitive data)
+    sanitized_request = request_data.copy() if isinstance(request_data, dict) else {}
+    if isinstance(sanitized_request, dict) and "args" in sanitized_request:
+        sanitized_request["args"] = {k: "[REDACTED]" if k.lower() in ["key", "token", "secret", "password", "credential", "auth"] else v 
+                                    for k, v in sanitized_request["args"].items()}
+    logger.debug(f"Sending request to MCP server: {json.dumps(sanitized_request)}")
     
     # Use a longer timeout for documentation fetching
     doc_timeout = max(timeout, 60)  # At least 60 seconds for documentation
@@ -616,15 +633,21 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         # Set debug_output to True to help diagnose issues
         response = await communicate_with_mcp_server(command, args, request_data, doc_timeout, debug_output=True)
         
-        # Print raw response for debugging
-        logger.debug(f"Response from MCP server: {json.dumps(response) if response else 'None'}")
+        # Print sanitized response for debugging
+        if response and isinstance(response, dict):
+            sanitized_response = {k: "[REDACTED]" if k.lower() in ["key", "token", "secret", "password", "credential", "auth"] 
+                                 else v for k, v in response.items()}
+            logger.debug(f"Response from MCP server: {json.dumps(sanitized_response)}")
+        else:
+            logger.debug("Response from MCP server: [None or non-dict response]")
         
         if not response:
             logger.error("No valid response received from the server")
             return None
 
         logger.debug(f"Raw response type: {type(response)}")
-        logger.debug(f"Raw response: {response}")
+        # Avoid logging potentially sensitive data
+        logger.debug("Raw response: [content redacted for security]")
 
         # Handle different response formats (SDK vs direct)
         if isinstance(response, dict):
