@@ -27,8 +27,8 @@ jobs:
         uv pip install --upgrade pip
         uv pip install -e .[dev]
         uv pip install pytest pytest-cov
-        # Skip MCP installation as it's not available on PyPI
-        # We'll mock this dependency in tests
+        # Try to install mcp with CLI tools using uv
+        uv pip install "mcp[cli]" || echo "Could not install mcp package, continuing anyway"
     
     - name: Run tests
       run: |
