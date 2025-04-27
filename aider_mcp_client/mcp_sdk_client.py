@@ -79,17 +79,24 @@ async def call_mcp_tool(
     
     try:
         # Create a timeout for the entire operation
-        async with asyncio.timeout(timeout):
-            async with stdio_client(server_params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    # Initialize the connection
-                    await session.initialize()
-                    
-                    # Call the tool
-                    logger.debug(f"Calling MCP tool: {tool_name} with args: {tool_args}")
-                    result = await session.call_tool(tool_name, arguments=tool_args)
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                # Initialize the connection
+                await session.initialize()
+                
+                # Call the tool with timeout
+                logger.debug(f"Calling MCP tool: {tool_name} with args: {tool_args}")
+                try:
+                    # Use asyncio.wait_for instead of asyncio.timeout for better compatibility
+                    result = await asyncio.wait_for(
+                        session.call_tool(tool_name, arguments=tool_args),
+                        timeout=timeout
+                    )
                     logger.debug(f"MCP tool result type: {type(result)}")
                     return result
+                except asyncio.TimeoutError:
+                    logger.error(f"Timeout after {timeout}s when calling MCP tool: {tool_name}")
+                    return None
     except asyncio.TimeoutError:
         logger.error(f"Timeout after {timeout}s when calling MCP tool: {tool_name}")
         return None

@@ -9,8 +9,15 @@ from pathlib import Path
 import logging
 from typing import Dict, Any, Optional, Tuple, List, Union
 from aider_mcp_client import __version__
-from mcp import ClientSession, StdioServerParameters, types
-from mcp.client.stdio import stdio_client
+
+# Check for MCP SDK dependencies
+try:
+    from mcp import ClientSession, StdioServerParameters, types
+    from mcp.client.stdio import stdio_client
+    HAS_MCP_SDK = True
+except ImportError:
+    HAS_MCP_SDK = False
+    logging.warning("MCP SDK not found. Some features will be limited. Install with: pip install mcp-sdk")
 
 # Configure logging
 logging.basicConfig(
@@ -380,6 +387,11 @@ async def communicate_with_mcp_sdk(command, args, request_data, timeout=30):
     Returns:
         dict: The response from the server.
     """
+    if not HAS_MCP_SDK:
+        logger.error("MCP SDK not installed. Cannot use SDK communication method.")
+        logger.error("Install the MCP SDK with: pip install mcp-sdk")
+        return None
+        
     logger.debug(f"Communicating with MCP server using SDK: {command} {args}")
     logger.debug(f"Request data: {request_data}")
     
@@ -438,17 +450,27 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
             return None
         
         # Handle different response formats (SDK vs direct)
-        if 'result' in response:
-            return response.get('result')
-        elif 'libraryId' in response:
-            return response.get('libraryId')
+        if isinstance(response, str):
+            # Direct string response
+            return response
+        elif isinstance(response, dict):
+            if 'result' in response:
+                return response.get('result')
+            elif 'libraryId' in response:
+                return response.get('libraryId')
+            else:
+                logger.error(f"Invalid response format when resolving library ID for '{library_name}'")
+                logger.debug(f"Response: {response}")
+                return None
         else:
-            logger.error(f"Invalid response format when resolving library ID for '{library_name}'")
+            logger.error(f"Unexpected response type: {type(response)}")
             logger.debug(f"Response: {response}")
             return None
     
     except Exception as e:
         logger.error(f"Error resolving library ID for '{library_name}': {str(e)}")
+        import traceback
+        logger.debug(f"Traceback: {traceback.format_exc()}")
         return None
 
 async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None, server_name="context7"):
@@ -496,23 +518,36 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
             logger.error("No valid response received from the server")
             return None
 
+        logger.debug(f"Raw response type: {type(response)}")
+        logger.debug(f"Raw response: {response}")
+
         # Handle different response formats (SDK vs direct)
-        if "library" not in response and "documentation" in response:
-            # Format SDK response to match the expected format
-            response = {
-                "library": library_id,
-                "snippets": response.get("documentation", []),
-                "totalTokens": response.get("tokenCount", tokens),
-                "lastUpdated": response.get("lastUpdated", "")
-            }
+        if isinstance(response, dict):
+            if "library" not in response and "documentation" in response:
+                # Format SDK response to match the expected format
+                response = {
+                    "library": library_id,
+                    "snippets": response.get("documentation", []),
+                    "totalTokens": response.get("tokenCount", tokens),
+                    "lastUpdated": response.get("lastUpdated", "")
+                }
+            elif "result" in response and isinstance(response["result"], dict):
+                # Handle nested result structure
+                result = response["result"]
+                response = {
+                    "library": result.get("library", library_id),
+                    "snippets": result.get("snippets", []),
+                    "totalTokens": result.get("totalTokens", tokens),
+                    "lastUpdated": result.get("lastUpdated", "")
+                }
 
         # Format output for Aider compatibility
         aider_output = {
-            "content": json.dumps(response, indent=2),  # Aider expects a content field
-            "library": response.get("library", ""),
-            "snippets": response.get("snippets", []),
-            "totalTokens": response.get("totalTokens", 0),
-            "lastUpdated": response.get("lastUpdated", "")
+            "content": json.dumps(response, indent=2) if isinstance(response, dict) else str(response),
+            "library": response.get("library", library_id) if isinstance(response, dict) else library_id,
+            "snippets": response.get("snippets", []) if isinstance(response, dict) else [],
+            "totalTokens": response.get("totalTokens", 0) if isinstance(response, dict) else 0,
+            "lastUpdated": response.get("lastUpdated", "") if isinstance(response, dict) else ""
         }
 
         # Print JSON output
@@ -521,6 +556,8 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
     
     except Exception as e:
         logger.error(f"Error fetching documentation: {str(e)}")
+        import traceback
+        logger.debug(f"Traceback: {traceback.format_exc()}")
         return None
 
 def list_supported_libraries():
