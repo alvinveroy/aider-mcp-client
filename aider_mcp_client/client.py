@@ -343,7 +343,7 @@ async def communicate_with_mcp_server(
                                     break  # No complete object yet
                                     
                                 json_str = buffer[:obj_end].strip()
-                                buffer = buffer[obj_end+1:]  # Remove processed part
+                                buffer = buffer[obj_end + 1:]  # Remove processed part
                                 
                                 if json_str:  # Skip empty lines
                                     json_data = json.loads(json_str)
@@ -357,7 +357,7 @@ async def communicate_with_mcp_server(
                             except json.JSONDecodeError as e:
                                 logger.debug(f"JSON decode error: {e} in: {json_str[:100]}...")
                                 # Skip this line and continue with the next one
-                                buffer = buffer[obj_end+1:]
+                                buffer = buffer[obj_end + 1:]
                                 continue
                     
                     # Check if process has terminated
