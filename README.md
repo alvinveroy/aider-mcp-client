@@ -2,7 +2,7 @@
 
 A Python client for interacting with MCP (Model Control Protocol) servers, with Aider integration support. This client primarily focuses on fetching documentation from Context7 MCP servers.
 
-[![PyPI version](https://badge.fury.io/py/mcp-client.svg)](https://badge.fury.io/py/mcp-client)
+[![PyPI version](https://badge.fury.io/py/mcp_client.svg)](https://badge.fury.io/py/mcp_client)
 
 ## Features
 
@@ -15,18 +15,18 @@ A Python client for interacting with MCP (Model Control Protocol) servers, with 
 
 From PyPI:
 ```bash
-pip install mcp-client
+pip install mcp_client
 ```
 
 From GitHub:
 ```bash
-pip install git+https://github.com/alvinveroy/mcp-client.git
+pip install git+https://github.com/alvinveroy/mcp_client.git
 ```
 
 For development:
 ```bash
-git clone https://github.com/alvinveroy/mcp-client.git
-cd mcp-client
+git clone https://github.com/alvinveroy/mcp_client.git
+cd mcp_client
 pip install -e .
 ```
 
@@ -35,7 +35,7 @@ pip install -e .
 After installation, you can use the command-line interface:
 
 ```bash
-mcp-client <command> [args...]
+mcp_client <command> [args...]
 ```
 
 Or as a module:
@@ -46,10 +46,10 @@ python -m mcp_client.client <command> [args...]
 Example commands:
 ```bash
 # Fetch documentation for a specific library
-mcp-client fetch vercel/nextjs
+mcp_client fetch vercel/nextjs
 
 # Fetch documentation with a specific topic and token limit
-mcp-client fetch vercel/nextjs --topic "routing" --tokens 10000
+mcp_client fetch vercel/nextjs --topic "routing" --tokens 10000
 ```
 
 ## Configuration
