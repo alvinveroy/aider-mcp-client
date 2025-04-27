@@ -401,7 +401,7 @@ class TestAiderMcpClient(unittest.TestCase):
             # since we're bypassing the resolve step by providing the full library ID
             mock_fetch_docs.assert_called_once_with("facebook/react", "components", 3000, 
                                                    custom_timeout=None, server_name="context7", 
-                                                   display_output=True, output_buffer=None)
+                                                   display_output=False, output_buffer=[])
         
         # Run the test coroutine
         from tests.test_helpers import run_async_test
