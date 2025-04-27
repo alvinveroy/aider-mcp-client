@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
     
     steps:
     - uses: actions/checkout@v3
@@ -22,8 +22,10 @@ jobs:
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
     
-    - name: Install dependencies
+    - name: Create virtual environment and install dependencies
       run: |
+        uv venv
+        source .venv/bin/activate
         uv pip install --upgrade pip
         uv pip install -e .[dev]
         uv pip install pytest pytest-cov
@@ -32,8 +34,10 @@ jobs:
     
     - name: Run tests
       run: |
-        uv run pytest
+        source .venv/bin/activate
+        pytest
     
     - name: Lint with flake8
       run: |
-        uv run flake8 aider_mcp_client
+        source .venv/bin/activate
+        flake8 aider_mcp_client
