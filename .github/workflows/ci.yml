@@ -86,14 +86,14 @@ jobs:
               git fetch --tags
               latest_tag=$(git describe --tags --abbrev=0)
               if [ -z "$latest_tag" ]; then
-                echo "alpha-v0.0.1"
+                echo "0.0.1a0"
               else
-                if [[ $latest_tag == *"alpha"* ]]; then
-                  # For alpha versions, just increment the patch number
-                  echo $latest_tag | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g'
+                if [[ $latest_tag == *"a"* ]]; then
+                  # For alpha versions, just increment the alpha number
+                  echo $latest_tag | awk -F'[a.]' -v OFS='.' '{$NF = $NF + 1; print $0"a"$NF}'
                 else
                   # For stable versions, create new alpha
-                  echo "alpha-v$(echo $latest_tag | cut -d'v' -f2 | awk -F. '{$NF = $NF + 1; print}')"
+                  echo "$(echo $latest_tag | awk -F. -v OFS='.' '{$NF = $NF + 1; print}')a0"
                 fi
               fi
             fi
