@@ -78,16 +78,23 @@ async def call_mcp_tool(
     )
     
     try:
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                # Initialize the connection
-                await session.initialize()
-                
-                # Call the tool
-                result = await session.call_tool(tool_name, arguments=tool_args)
-                return result
+        # Create a timeout for the entire operation
+        async with asyncio.timeout(timeout):
+            async with stdio_client(server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    # Initialize the connection
+                    await session.initialize()
+                    
+                    # Call the tool
+                    logger.debug(f"Calling MCP tool: {tool_name} with args: {tool_args}")
+                    result = await session.call_tool(tool_name, arguments=tool_args)
+                    logger.debug(f"MCP tool result type: {type(result)}")
+                    return result
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout after {timeout}s when calling MCP tool: {tool_name}")
+        return None
     except Exception as e:
-        logger.error(f"Failed to call MCP tool: {e}")
+        logger.error(f"Failed to call MCP tool {tool_name}: {e}")
         return None
 
 async def fetch_documentation_sdk(
@@ -118,26 +125,37 @@ async def fetch_documentation_sdk(
         "tokens": max(tokens, 5000)  # Ensure minimum of 5000 tokens
     }
     
-    result = await call_mcp_tool(
-        command=command,
-        args=args,
-        tool_name="get-library-docs",
-        tool_args=tool_args,
-        timeout=timeout
-    )
-    
-    if result:
+    try:
+        result = await call_mcp_tool(
+            command=command,
+            args=args,
+            tool_name="get-library-docs",
+            tool_args=tool_args,
+            timeout=timeout
+        )
+        
+        if not result:
+            logger.warning(f"No documentation returned for library ID: {library_id}")
+            return None
+            
         # Format output for Aider compatibility
-        aider_output = {
-            "content": json.dumps(result, indent=2),  # Aider expects a content field
-            "library": result.get("library", ""),
-            "snippets": result.get("snippets", []),
-            "totalTokens": result.get("totalTokens", 0),
-            "lastUpdated": result.get("lastUpdated", "")
-        }
-        return aider_output
-    
-    return None
+        if isinstance(result, dict):
+            # Extract relevant fields from the result
+            aider_output = {
+                "content": result.get("content", json.dumps(result, indent=2)),
+                "library": result.get("library", library_id),
+                "snippets": result.get("snippets", []),
+                "totalTokens": result.get("totalTokens", 0),
+                "lastUpdated": result.get("lastUpdated", "")
+            }
+            return aider_output
+        else:
+            # Handle case where result is not a dictionary
+            logger.warning(f"Unexpected result type: {type(result)}")
+            return {"content": str(result), "library": library_id}
+    except Exception as e:
+        logger.error(f"Error fetching documentation: {e}")
+        return None
 
 async def resolve_library_id_sdk(
     library_name: str,
@@ -169,4 +187,9 @@ async def resolve_library_id_sdk(
         timeout=timeout
     )
     
-    return result
+    if result and isinstance(result, dict):
+        return result.get("libraryId")
+    elif result and isinstance(result, str):
+        return result
+    
+    return None
