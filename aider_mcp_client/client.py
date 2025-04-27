@@ -112,9 +112,9 @@ async def communicate_with_mcp_server(
     
     # Define test mode flag for reuse
     is_test_mode = (
-        os.environ.get("AIDER_MCP_TEST_MODE") == "true" or
-        'unittest' in sys.modules or
-        'pytest' in sys.modules
+        os.environ.get("AIDER_MCP_TEST_MODE") == "true"
+        or 'unittest' in sys.modules
+        or 'pytest' in sys.modules
     )
     
     if is_test_mode:
@@ -200,8 +200,8 @@ async def communicate_with_mcp_server(
             if process.stderr.readable():
                 stderr_line = process.stderr.readline()
                 if stderr_line:
-                    if ("MCP Server running on stdio" in stderr_line or 
-                        "Documentation MCP Server running on stdio" in stderr_line):
+                    if ("MCP Server running on stdio" in stderr_line
+                            or "Documentation MCP Server running on stdio" in stderr_line):
                         logger.info(f"Server startup message detected: {stderr_line.strip()}")
                         server_ready = True
                         break
