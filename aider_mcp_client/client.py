@@ -510,7 +510,7 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
         logger.debug(f"Traceback: {traceback.format_exc()}")
         return None
 
-async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None, server_name="context7", display_output=True):
+async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None, server_name="context7", display_output=True, output_buffer=None):
     """Fetch JSON documentation from an MCP server."""
     # Load server configuration
     config = load_config()
@@ -625,8 +625,13 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
             "lastUpdated": response.get("lastUpdated", "") if isinstance(response, dict) else ""
         }
 
-        # Display the documentation in the console if requested
-        if display_output:
+        # If we have an output buffer, add the documentation to it
+        # Otherwise display immediately
+        if output_buffer is not None and isinstance(output_buffer, list):
+            # Store the documentation in the buffer for later display
+            output_buffer.append((response, library_id))
+        elif display_output:
+            # Display immediately
             display_documentation(response, library_id)
         
         # Save documentation to a JSON file
@@ -772,12 +777,13 @@ async def async_main():
             if hasattr(args, 'output') and args.output:
                 output_file = args.output
                 
-            # Don't display output in console if --output is specified
-            display_output = not output_file
+            # Create a buffer to store documentation if we're displaying it
+            output_buffer = [] if not output_file else None
             
             result = await fetch_documentation(args.library_id, args.topic, args.tokens, 
                                      custom_timeout=timeout, server_name=server_name,
-                                     display_output=display_output)
+                                     display_output=False,  # Don't display immediately
+                                     output_buffer=output_buffer)
             
             # If output file is specified, save to that file instead of default
             if output_file and result:
@@ -787,6 +793,12 @@ async def async_main():
                     print(f"Documentation saved to {output_file}")
                 except Exception as e:
                     logger.error(f"Error saving documentation to specified file: {str(e)}")
+            
+            # Now display any buffered documentation after MCP connection has ended
+            if output_buffer and len(output_buffer) > 0:
+                for doc_data in output_buffer:
+                    response, lib_id = doc_data
+                    display_documentation(response, lib_id)
         
         elif args.command == "resolve":
             # Use command-line timeout if provided
