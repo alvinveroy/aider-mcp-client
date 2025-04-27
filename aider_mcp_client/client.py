@@ -7,12 +7,12 @@ import os
 import asyncio
 from pathlib import Path
 import logging
-from typing import Dict, Any, Optional, Tuple, List, Union
+from typing import Dict, Any, Optional, List
 from aider_mcp_client import __version__
 
 # Check for MCP SDK dependencies
 try:
-    from mcp import ClientSession, StdioServerParameters, types
+    from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
     HAS_MCP_SDK = True
 except ImportError:
@@ -30,6 +30,7 @@ logger = logging.getLogger("aider_mcp_client")
 # Constants for MCP protocol
 MCP_VERSION = "0.1.0"
 
+
 def verbose():
     """Display version information and other details."""
     print(f"Aider MCP Client v{__version__}")
@@ -37,6 +38,7 @@ def verbose():
     print("Default server: Context7 MCP")
     print("\nUsage: mcp_client <command> [args...]")
     print("For help: mcp_client --help")
+
 
 def load_config():
     """
@@ -79,6 +81,7 @@ def load_config():
     logger.info("No config file found. Using default Context7 server configuration.")
     return default_config
 
+
 async def communicate_with_mcp_server(command, args, request_data, timeout=30, debug_output=False):
     """Communicate with an MCP server via stdio using the MCP protocol."""
     # For test mode, return mock data directly
@@ -91,7 +94,8 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
     import sys
     
     # Define test mode flag for reuse
-    is_test_mode = os.environ.get("AIDER_MCP_TEST_MODE") == "true" or 'unittest' in sys.modules or 'pytest' in sys.modules
+    is_test_mode = (os.environ.get("AIDER_MCP_TEST_MODE") == "true" or 
+                    'unittest' in sys.modules or 'pytest' in sys.modules)
     
     if is_test_mode:
         logger.debug("Test mode: Preparing mock data")
@@ -124,11 +128,10 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
     
     # Redirect stderr to a separate pipe to capture server messages
     import sys
-    original_stderr = sys.stderr
     
     for server_name, server_config in config.get("mcpServers", {}).items():
-        if (server_config.get("command") == command and 
-            server_config.get("args") == args and 
+        if (server_config.get("command") == command and
+            server_config.get("args") == args and
             server_config.get("sdk", False)):
             use_sdk = True
             logger.debug(f"Using MCP SDK for server {server_name}")
@@ -493,6 +496,7 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
         logger.error(f"Error communicating with MCP server: {e}")
         return None
 
+
 async def communicate_with_mcp_sdk(command, args, request_data, timeout=30):
     """
     Communicate with the MCP server using the MCP SDK.
@@ -542,6 +546,7 @@ async def communicate_with_mcp_sdk(command, args, request_data, timeout=30):
         raise
 
 # Import SDK functions directly in the client module for easier mocking in tests
+
 async def resolve_library_id_sdk(
     library_name: str,
     command: str = "npx",
@@ -597,6 +602,7 @@ async def resolve_library_id_sdk(
     except Exception as e:
         logger.error(f"Error resolving library ID with SDK: {e}")
         return None
+
 
 async def fetch_documentation_sdk(
     library_id: str,
@@ -688,6 +694,7 @@ async def fetch_documentation_sdk(
     except Exception as e:
         logger.error(f"Error fetching documentation with SDK: {e}")
         return None
+
 
 async def resolve_library_id(library_name, custom_timeout=None, server_name="context7"):
     """Resolve a general library name to a Context7-compatible library ID."""
@@ -795,6 +802,7 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
     if ('unittest' in sys.modules) and mock_data:
         logger.debug(f"Returning mock data after mock call: {mock_data}")
         return mock_data
+
 
 async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None, server_name="context7", display_output=True, output_buffer=None, _test_mode=False):
     """Fetch JSON documentation from an MCP server."""
@@ -1019,11 +1027,13 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         logger.debug(f"Returning mock data after mock call: {mock_data}")
         return mock_data
 
+
 def list_supported_libraries():
     """List all libraries supported by Context7."""
     print("Fetching list of supported libraries from Context7...")
     print("This feature is not yet implemented. Please check https://context7.com for supported libraries.")
     return
+
 
 def display_documentation(response, library_id):
     """Helper function to display documentation in the console."""
@@ -1058,6 +1068,7 @@ def display_documentation(response, library_id):
         # Fallback to printing the full JSON if snippets not found
         formatted_output = json.dumps(aider_output, indent=2, ensure_ascii=False)
         print(formatted_output)
+
 
 async def async_main():
     """Async entry point for the CLI."""
@@ -1097,7 +1108,7 @@ async def async_main():
     resolve_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds")
     
     # List command
-    list_parser = subparsers.add_parser("list", help="List supported libraries")
+    subparsers.add_parser("list", help="List supported libraries")
     
     args = parser.parse_args()
 
@@ -1219,6 +1230,7 @@ async def async_main():
             import traceback
             traceback.print_exc()
         sys.exit(1)
+
 
 def main():
     """Entry point for the CLI."""
