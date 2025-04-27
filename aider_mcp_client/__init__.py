@@ -1,1 +1,1 @@
-__version__ = "0.1.0"  # Will be auto-updated by release workflow
+__version__ = "alpha-v0.0.1"  # Will be auto-updated by release workflow

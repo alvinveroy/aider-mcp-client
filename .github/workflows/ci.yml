@@ -64,6 +64,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Build package
+        run: |
+          python -m pip install build
+          python -m build
+
       - name: Bump version and create tag
         id: bump-version
         uses: mathieudutour/github-tag-action@v6.2
@@ -74,9 +79,15 @@ jobs:
               git fetch --tags
               latest_tag=$(git describe --tags --abbrev=0)
               if [ -z "$latest_tag" ]; then
-                echo "0.1.0"
+                echo "alpha-v0.0.1"
               else
-                echo $latest_tag | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g'
+                if [[ $latest_tag == *"alpha"* ]]; then
+                  # For alpha versions, just increment the patch number
+                  echo $latest_tag | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g'
+                else
+                  # For stable versions, create new alpha
+                  echo "alpha-v$(echo $latest_tag | cut -d'v' -f2 | awk -F. '{$NF = $NF + 1; print}')"
+                fi
               fi
             fi
 
