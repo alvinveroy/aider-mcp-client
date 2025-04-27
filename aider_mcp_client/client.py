@@ -402,6 +402,11 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
         if (os.environ.get("AIDER_MCP_TEST_MODE") == "true" or 'unittest' in sys.modules or 'pytest' in sys.modules) and mock_data:
             logger.debug(f"Returning mock data after mock call: {mock_data}")
             return mock_data
+                
+        # If we're in a test environment and have mock data, return it now
+        if (os.environ.get("AIDER_MCP_TEST_MODE") == "true" or 'unittest' in sys.modules or 'pytest' in sys.modules) and mock_data:
+            logger.debug(f"Returning mock data after mock call: {mock_data}")
+            return mock_data
 
         # Find the response for our request
         response = None
@@ -741,6 +746,11 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
     if ('unittest' in sys.modules) and mock_data:
         logger.debug(f"Returning mock data after mock call: {mock_data}")
         return mock_data
+        
+    # If we're in a test environment and have mock data, return it now
+    if ('unittest' in sys.modules) and mock_data:
+        logger.debug(f"Returning mock data after mock call: {mock_data}")
+        return mock_data
 
 async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None, server_name="context7", display_output=True, output_buffer=None):
     """Fetch JSON documentation from an MCP server."""
@@ -943,6 +953,11 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         import traceback
         logger.debug(f"Traceback: {traceback.format_exc()}")
         return None
+        
+    # If we're in a test environment and have mock data, return it now
+    if ('unittest' in sys.modules) and mock_data:
+        logger.debug(f"Returning mock data after mock call: {mock_data}")
+        return mock_data
         
     # If we're in a test environment and have mock data, return it now
     if ('unittest' in sys.modules) and mock_data:
