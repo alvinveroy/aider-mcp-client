@@ -100,6 +100,8 @@ class TestAiderMcpClient(unittest.TestCase):
         mock_process = MagicMock()
         mock_process.stdout.readline.return_value = '{"result": "test_result"}\n'
         mock_process.poll.return_value = None
+        # Set up stderr.read() to return an empty string
+        mock_process.stderr.read.return_value = ""
         mock_popen.return_value = mock_process
         
         # Mock os.environ.get to return test mode
