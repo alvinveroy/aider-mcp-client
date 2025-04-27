@@ -5,6 +5,12 @@
       "args": ["-y", "@upstash/context7-mcp@latest"],
       "enabled": true,
       "timeout": 30
+    },
+    "python-mcp": {
+      "command": "python",
+      "args": ["-m", "mcp.server.stdio"],
+      "enabled": true,
+      "timeout": 30
     }
   }
 }

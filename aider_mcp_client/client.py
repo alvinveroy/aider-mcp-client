@@ -4,6 +4,7 @@ import argparse
 import sys
 import time
 import os
+import asyncio
 from pathlib import Path
 import logging
 from aider_mcp_client import __version__
@@ -15,6 +16,9 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger("aider_mcp_client")
+
+# Constants for MCP protocol
+MCP_VERSION = "0.1.0"
 
 def verbose():
     """Display version information and other details."""
@@ -65,8 +69,8 @@ def load_config():
     logger.info("No config file found. Using default Context7 server configuration.")
     return default_config
 
-def communicate_with_mcp_server(command, args, request_data, timeout=30):
-    """Communicate with an MCP server via stdio."""
+async def communicate_with_mcp_server(command, args, request_data, timeout=30):
+    """Communicate with an MCP server via stdio using the MCP protocol."""
     try:
         # Start the MCP server process
         logger.debug(f"Starting MCP server process: {command} {' '.join(args)}")
@@ -88,21 +92,80 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
             if process.stderr.readable():
                 stderr_line = process.stderr.readline()
                 if stderr_line:
-                    if "Context7 Documentation MCP Server running on stdio" in stderr_line:
+                    if "MCP Server running on stdio" in stderr_line or "Documentation MCP Server running on stdio" in stderr_line:
                         logger.info(f"Server startup message detected: {stderr_line.strip()}")
                         server_ready = True
                         break
-            time.sleep(0.1)
+            await asyncio.sleep(0.1)
         
         if not server_ready:
             logger.warning("No server startup message detected, proceeding anyway")
         
-        # Send JSON request to the server's stdin
-        request_json = json.dumps(request_data)
+        # Initialize MCP connection
+        init_message = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "clientName": "aider-mcp-client",
+                "clientVersion": __version__,
+                "capabilities": {
+                    "prompts": {},
+                    "resources": {},
+                    "tools": {}
+                }
+            }
+        }
+        
+        # Send initialization message
+        init_json = json.dumps(init_message)
+        logger.debug(f"Sending initialization: {init_json}")
+        process.stdin.write(init_json + '\n')
+        process.stdin.flush()
+        
+        # Wait for initialization response
+        init_response = None
+        start_time = time.time()
+        while time.time() - start_time < 5 and not init_response:
+            line = process.stdout.readline()
+            if not line:
+                break
+                
+            line = line.strip()
+            if line:
+                try:
+                    response = json.loads(line)
+                    if 'id' in response and response['id'] == 1:
+                        init_response = response
+                        logger.debug(f"Received initialization response: {line[:100]}...")
+                        break
+                except json.JSONDecodeError:
+                    logger.debug(f"Received non-JSON line during init: {line}")
+                    continue
+            
+            await asyncio.sleep(0.01)
+            
+        if not init_response:
+            logger.error("Failed to initialize MCP connection")
+            process.terminate()
+            return None
+            
+        # Now send the actual request
+        request_id = 2
+        mcp_request = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "callTool",
+            "params": {
+                "name": request_data.get("tool", "get-library-docs"),
+                "arguments": request_data.get("args", {})
+            }
+        }
+        
+        request_json = json.dumps(mcp_request)
         logger.debug(f"Sending request: {request_json}")
         process.stdin.write(request_json + '\n')
         process.stdin.flush()
-        process.stdin.close()  # Close stdin to signal we're done sending data
 
         # Read output with a timeout
         start_time = time.time()
@@ -201,7 +264,7 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
                     if process.poll() is not None:
                         logger.debug("Process terminated")
                         break
-                    time.sleep(0.01)
+                    await asyncio.sleep(0.01)
         except Exception as e:
             logger.warning(f"Error in I/O handling: {e}. Falling back to simple readline.")
             # If the advanced I/O handling fails, fall back to simple readline
@@ -222,7 +285,25 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
                 
                 if process.poll() is not None:
                     break
-                time.sleep(0.01)
+                await asyncio.sleep(0.01)
+
+        # Send shutdown message
+        shutdown_message = {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "shutdown"
+        }
+        process.stdin.write(json.dumps(shutdown_message) + '\n')
+        process.stdin.flush()
+        
+        # Send exit notification
+        exit_message = {
+            "jsonrpc": "2.0",
+            "method": "exit"
+        }
+        process.stdin.write(json.dumps(exit_message) + '\n')
+        process.stdin.flush()
+        process.stdin.close()  # Close stdin to signal we're done sending data
 
         # Terminate the process
         logger.debug("Terminating MCP server process")
@@ -237,35 +318,47 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
         stderr = process.stderr.read()
         if stderr:
             # Ignore the startup message which is not an error
-            if "Context7 Documentation MCP Server running on stdio" in stderr:
+            if "MCP Server running on stdio" in stderr or "Documentation MCP Server running on stdio" in stderr:
                 logger.debug(f"Server startup message (already handled): {stderr.strip()}")
             else:
                 logger.error(f"Server error: {stderr}")
 
-        # Return the last valid JSON response
-        if output:
-            return output[-1]
-        else:
-            logger.error("No valid response received")
-            # Check if we only got the startup message but no actual errors
-            if stderr and "Context7 Documentation MCP Server running on stdio" in stderr and not any(other_error for other_error in stderr.splitlines() if "Context7 Documentation MCP Server running on stdio" not in other_error):
-                logger.warning("Only received startup message. The server might be working but not producing output. Check your request parameters.")
-            return None
+        # Find the response for our request
+        response = None
+        for msg in output:
+            if 'id' in msg and msg['id'] == request_id:
+                response = msg
+                break
+                
+        if response:
+            # Extract the result from the MCP response
+            if 'result' in response:
+                # Format the result to match the expected structure
+                if isinstance(response['result'], dict):
+                    return response['result']
+                else:
+                    return {"result": response['result']}
+            elif 'error' in response:
+                logger.error(f"MCP server returned error: {response['error']}")
+                return {"error": response['error']}
+        
+        logger.error("No valid response received")
+        return None
 
     except Exception as e:
         logger.error(f"Error communicating with MCP server: {e}")
         return None
 
-def resolve_library_id(library_name, custom_timeout=None):
+async def resolve_library_id(library_name, custom_timeout=None, server_name="context7"):
     """Resolve a general library name to a Context7-compatible library ID."""
     config = load_config()
-    # Get the Context7 server config from mcpServers
-    server_config = config.get("mcpServers", {}).get("context7", {})
+    # Get the server config from mcpServers
+    server_config = config.get("mcpServers", {}).get(server_name, {})
     command = server_config.get("command", "npx")
     args = server_config.get("args", ["-y", "@upstash/context7-mcp@latest"])
     timeout = custom_timeout or server_config.get("timeout", 30)
     
-    logger.info(f"Using timeout of {timeout} seconds for resolution")
+    logger.info(f"Using timeout of {timeout} seconds for resolution with {server_name} server")
     
     # Construct MCP request for resolve-library-id tool
     request_data = {
@@ -277,7 +370,7 @@ def resolve_library_id(library_name, custom_timeout=None):
     
     try:
         # Communicate with the server
-        response = communicate_with_mcp_server(command, args, request_data, timeout)
+        response = await communicate_with_mcp_server(command, args, request_data, timeout)
         
         if not response:
             logger.error(f"No response received when resolving library ID for '{library_name}'")
@@ -294,23 +387,23 @@ def resolve_library_id(library_name, custom_timeout=None):
         logger.error(f"Error resolving library ID for '{library_name}': {str(e)}")
         return None
 
-def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None):
+async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None, server_name="context7"):
     """Fetch JSON documentation from an MCP server."""
     # Load server configuration
     config = load_config()
-    # Get the Context7 server config from mcpServers
-    server_config = config.get("mcpServers", {}).get("context7", {})
+    # Get the server config from mcpServers
+    server_config = config.get("mcpServers", {}).get(server_name, {})
     command = server_config.get("command", "npx")
     args = server_config.get("args", ["-y", "@upstash/context7-mcp@latest"])
     timeout = custom_timeout or server_config.get("timeout", 30)
     
-    logger.info(f"Using timeout of {timeout} seconds")
+    logger.info(f"Using timeout of {timeout} seconds with {server_name} server")
     
     # Check if we need to resolve the library ID first
     if '/' not in library_id:
         logger.info(f"Resolving library ID for '{library_id}'")
         try:
-            resolved_id = resolve_library_id(library_id, custom_timeout=timeout)
+            resolved_id = await resolve_library_id(library_id, custom_timeout=timeout, server_name=server_name)
             if resolved_id:
                 library_id = resolved_id
                 logger.info(f"Resolved to '{library_id}'")
@@ -333,7 +426,7 @@ def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None):
     logger.info(f"Fetching documentation for '{library_id}'{' on topic ' + topic if topic else ''}")
     
     try:
-        response = communicate_with_mcp_server(command, args, request_data, timeout)
+        response = await communicate_with_mcp_server(command, args, request_data, timeout)
         
         if not response:
             logger.error("No valid response received from the server")
@@ -362,14 +455,16 @@ def list_supported_libraries():
     print("This feature is not yet implemented. Please check https://context7.com for supported libraries.")
     return
 
-def main():
+async def async_main():
+    """Async entry point for the CLI."""
     # Set up command-line argument parsing
-    parser = argparse.ArgumentParser(description="Aider MCP client for fetching library documentation, defaulting to Context7.")
+    parser = argparse.ArgumentParser(description="Aider MCP client for fetching library documentation.")
     
     # Global options that should be available for all commands
     parser.add_argument("-v", "--version", action="store_true", help="Show version information")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--quiet", action="store_true", help="Suppress informational output")
+    parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
     
     # Create subparsers for commands
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -380,12 +475,14 @@ def main():
     fetch_parser.add_argument("--topic", default="", help="Topic to filter documentation (optional)")
     fetch_parser.add_argument("--tokens", type=int, default=5000, help="Maximum tokens (default: 5000)")
     fetch_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
+    fetch_parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
     fetch_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     
     # Resolve command
     resolve_parser = subparsers.add_parser("resolve", help="Resolve a library name to a Context7-compatible ID")
     resolve_parser.add_argument("library_name", help="Library name to resolve (e.g., nextjs)")
     resolve_parser.add_argument("--timeout", type=int, default=None, help="Timeout in seconds (overrides config)")
+    resolve_parser.add_argument("--server", default="context7", help="MCP server to use (default: context7)")
     resolve_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     
     # List command
@@ -412,6 +509,9 @@ def main():
         return
 
     try:
+        # Get server name from command-specific argument if available, otherwise from global argument
+        server_name = getattr(args, 'server', "context7")
+        
         if args.command == "fetch":
             if hasattr(args, 'tokens') and args.tokens <= 0:
                 logger.error("Error: Tokens must be a positive integer")
@@ -423,15 +523,16 @@ def main():
             # Load config to get default timeout if not specified
             if timeout is None:
                 config = load_config()
-                timeout = config.get("mcp_server", {}).get("timeout", 30)
+                timeout = config.get("mcpServers", {}).get(server_name, {}).get("timeout", 30)
             
-            fetch_documentation(args.library_id, args.topic, args.tokens, custom_timeout=timeout)
+            await fetch_documentation(args.library_id, args.topic, args.tokens, 
+                                     custom_timeout=timeout, server_name=server_name)
         
         elif args.command == "resolve":
             # Use command-line timeout if provided
             timeout = args.timeout if hasattr(args, 'timeout') and args.timeout else None
             
-            resolved = resolve_library_id(args.library_name)
+            resolved = await resolve_library_id(args.library_name, custom_timeout=timeout, server_name=server_name)
             if resolved:
                 print(f"Resolved '{args.library_name}' to: {resolved}")
             else:
