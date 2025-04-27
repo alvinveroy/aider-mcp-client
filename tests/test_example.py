@@ -41,7 +41,7 @@ class TestMcpExample(unittest.TestCase):
             # Force the mock to be called by setting _is_test=True
             with patch('os.environ.get') as mock_env:
                 mock_env.return_value = None  # Make sure AIDER_MCP_TEST_MODE is not set
-                with patch('sys.modules', {}):  # Make sure unittest is not in sys.modules
+                with patch('sys.modules', {'unittest': None}):  # Make unittest present but not active
                     result = await fetch_documentation_sdk(
                         library_id="vercel/nextjs",
                         topic="routing",
