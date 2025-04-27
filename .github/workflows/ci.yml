@@ -1,5 +1,9 @@
 name: CI
 
+permissions:
+  contents: write  # Required for creating/pushing tags
+  packages: write  # Required for PyPI publishing
+
 on: 
   push:
     branches: [ main ]
