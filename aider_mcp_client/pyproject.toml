@@ -1,10 +1,13 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=61.0", "wheel", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "aider_mcp_client/_version.py"
 
 [project]
 name = "aider-mcp-client"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A Python client for interacting with MCP (Model Control Protocol) servers"
 readme = "README.md"
 requires-python = ">=3.8"
