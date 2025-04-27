@@ -11,6 +11,13 @@
       "args": ["-m", "mcp.server.stdio"],
       "enabled": true,
       "timeout": 30
+    },
+    "mcp-sdk": {
+      "command": "python",
+      "args": ["-m", "mcp.server.stdio"],
+      "enabled": true,
+      "timeout": 30,
+      "sdk": true
     }
   }
 }
