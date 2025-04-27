@@ -42,7 +42,14 @@ async def connect_to_mcp_server(
             async with ClientSession(read, write) as session:
                 # Initialize the connection
                 init_result = await session.initialize()
-                logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                # Handle different versions of MCP SDK
+                if hasattr(init_result, 'server_info'):
+                    logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                else:
+                    # Newer versions might have different structure
+                    server_name = getattr(init_result, 'name', 'Unknown')
+                    server_version = getattr(init_result, 'version', 'Unknown')
+                    logger.debug(f"Connected to MCP server: {server_name} v{server_version}")
                 return {
                     "server_name": init_result.server_info.name,
                     "server_version": init_result.server_info.version,
@@ -115,7 +122,14 @@ async def call_mcp_tool(
                                 session.initialize(),
                                 timeout=10  # Short timeout for initialization
                             )
-                            logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                            # Handle different versions of MCP SDK
+                            if hasattr(init_result, 'server_info'):
+                                logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                            else:
+                                # Newer versions might have different structure
+                                server_name = getattr(init_result, 'name', 'Unknown')
+                                server_version = getattr(init_result, 'version', 'Unknown')
+                                logger.debug(f"Connected to MCP server: {server_name} v{server_version}")
                             
                             try:
                                 # List tools with timeout
@@ -289,7 +303,14 @@ async def fetch_documentation_sdk(
                                 session.initialize(),
                                 timeout=10  # Short timeout for initialization
                             )
-                            logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                            # Handle different versions of MCP SDK
+                            if hasattr(init_result, 'server_info'):
+                                logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                            else:
+                                # Newer versions might have different structure
+                                server_name = getattr(init_result, 'name', 'Unknown')
+                                server_version = getattr(init_result, 'version', 'Unknown')
+                                logger.debug(f"Connected to MCP server: {server_name} v{server_version}")
                             
                             # List available tools to verify the tool exists
                             tools = await asyncio.wait_for(
