@@ -37,7 +37,8 @@ jobs:
         source .venv/bin/activate
         AIDER_MCP_TEST_MODE=true python -m pytest -v
     
-    - name: Lint with flake8
+    - name: Install and run flake8
       run: |
         source .venv/bin/activate
+        uv pip install flake8
         flake8 aider_mcp_client
