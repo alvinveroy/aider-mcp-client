@@ -105,7 +105,13 @@ class TestAiderMcpClient(unittest.TestCase):
         
         # Patch time.sleep to avoid delays in tests
         with patch('time.sleep'):
-            result = communicate_with_mcp_server("test_command", ["test_arg"], request_data, 5)
+            # Create a test coroutine to run the async code
+            async def test_coro():
+                return await communicate_with_mcp_server("test_command", ["test_arg"], request_data, 5)
+            
+            # Run the test coroutine
+            loop = asyncio.get_event_loop()
+            result = loop.run_until_complete(test_coro())
         
         # Check that Popen was called with correct arguments
         mock_popen.assert_called_once_with(
