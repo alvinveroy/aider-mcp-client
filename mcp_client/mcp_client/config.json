@@ -1,0 +1,6 @@
+{
+    "server": "Context7",
+    "host": "localhost",
+    "port": 8000,
+    "timeout": 30
+}
