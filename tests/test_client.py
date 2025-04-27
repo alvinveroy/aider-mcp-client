@@ -13,7 +13,6 @@ from aider_mcp_client.client import (
 )
 
 
-
 class TestAiderMcpClient(unittest.TestCase):
     def setUp(self):
         # Create a temporary directory for test configs
@@ -42,7 +41,6 @@ class TestAiderMcpClient(unittest.TestCase):
     def tearDown(self):
         # Clean up the temporary directory
         self.temp_dir.cleanup()
-    
 
     def test_load_config_default(self):
         """Test that default config is loaded when no config files exist"""
@@ -52,7 +50,6 @@ class TestAiderMcpClient(unittest.TestCase):
             self.assertEqual(config["mcpServers"]["context7"]["args"], ["-y", "@upstash/context7-mcp@latest"])
             self.assertEqual(config["mcpServers"]["context7"]["timeout"], 30)
             self.assertEqual(config["mcpServers"]["context7"]["enabled"], True)
-    
 
     def test_load_config_local(self):
         """Test loading config from local directory"""
@@ -72,7 +69,6 @@ class TestAiderMcpClient(unittest.TestCase):
                     self.assertEqual(config["mcp_server"]["command"], "test_command")
                     self.assertEqual(config["mcp_server"]["args"], ["test_arg1", "test_arg2"])
                     self.assertEqual(config["mcp_server"]["tool"], "get-library-docs")
-    
 
     def test_load_config_home(self):
         """Test loading config from home directory"""
@@ -93,8 +89,6 @@ class TestAiderMcpClient(unittest.TestCase):
                     self.assertEqual(config["mcp_server"]["command"], "test_command")
                     self.assertEqual(config["mcp_server"]["args"], ["test_arg1", "test_arg2"])
                     self.assertEqual(config["mcp_server"]["tool"], "get-library-docs")
-
-
 
     @patch('aider_mcp_client.client.resolve_library_id_sdk')
     @patch('aider_mcp_client.client.load_config')
@@ -119,10 +113,8 @@ class TestAiderMcpClient(unittest.TestCase):
         
         # Verify SDK was called with correct arguments
         mock_sdk.assert_called_once()
-    
 
     @patch('aider_mcp_client.client.resolve_library_id')
-
     @patch('aider_mcp_client.client.fetch_documentation_sdk')
     @patch('aider_mcp_client.client.load_config')
     def test_fetch_documentation_with_resolution(self, mock_load_config, mock_fetch_sdk, mock_resolve):
@@ -162,7 +154,7 @@ class TestAiderMcpClient(unittest.TestCase):
         self.assertEqual(result["snippets"], ["snippet1", "snippet2"])
         self.assertEqual(result["totalTokens"], 1000)
         self.assertEqual(result["lastUpdated"], "2025-04-27")
-    
+
     @patch('aider_mcp_client.client.fetch_documentation_sdk')
     @patch('aider_mcp_client.client.load_config')
     def test_fetch_documentation_without_resolution(self, mock_load_config, mock_fetch_sdk):
@@ -197,7 +189,6 @@ class TestAiderMcpClient(unittest.TestCase):
             self.assertEqual(result["snippets"], ["snippet1", "snippet2"])
             self.assertEqual(result["totalTokens"], 1000)
             self.assertEqual(result["lastUpdated"], "2025-04-27")
-    
 
     @patch('builtins.print')
     def test_list_supported_libraries(self, mock_print):
@@ -258,7 +249,6 @@ class TestAiderMcpClient(unittest.TestCase):
             # Verify that appropriate messages were printed
             mock_print.assert_any_call("Fetching documentation for react/react on topic: hooks")
 
-
     @patch('sys.argv')
     @patch('aider_mcp_client.client.fetch_documentation')
     @patch('aider_mcp_client.client.resolve_library_id')
@@ -301,15 +291,16 @@ class TestAiderMcpClient(unittest.TestCase):
             
             # Only verify fetch_documentation was called with correct arguments
             # since we're bypassing the resolve step by providing the full library ID
-            mock_fetch_docs.assert_called_once_with("facebook/react", "components", 3000, 
-                                                   custom_timeout=None, server_name="context7", 
-                                                   display_output=False, output_buffer=[])
+            mock_fetch_docs.assert_called_once_with(
+                "facebook/react", "components", 3000,
+                custom_timeout=None, server_name="context7",
+                display_output=False, output_buffer=[]
+            )
         
         # Run the test coroutine
         from tests.test_helpers import run_async_test
         with patch('builtins.print'):  # Suppress print output
             run_async_test(test_coro())
-
 
 
 if __name__ == "__main__":
