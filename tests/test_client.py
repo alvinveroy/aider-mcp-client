@@ -183,7 +183,7 @@ class TestAiderMcpClient(unittest.TestCase):
             result = loop.run_until_complete(test_coro())
             
             # Check that resolve_library_id was called with the correct arguments
-            mock_resolve.assert_called_once_with("library", custom_timeout=15)
+            mock_resolve.assert_called_once_with("library", custom_timeout=15, server_name="context7")
             
             # Check that communicate_with_mcp_server was called with correct arguments
             mock_communicate.assert_called_once_with(
@@ -224,11 +224,20 @@ class TestAiderMcpClient(unittest.TestCase):
         with patch('builtins.print') as mock_print:
             # Create a test coroutine to run the async code
             async def test_coro():
-                return await fetch_documentation("org/library", "topic", 6000)
+                # Patch the MCP SDK client to avoid actual SDK calls
+                with patch('aider_mcp_client.client.fetch_documentation_sdk') as mock_sdk:
+                    mock_sdk.return_value = {
+                        "content": "Test documentation",
+                        "library": "org/library",
+                        "snippets": [],
+                        "totalTokens": 6000,
+                        "lastUpdated": ""
+                    }
+                    return await fetch_documentation("org/library", "topic", 6000)
             
             # Run the test coroutine
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(test_coro())
+            from tests.test_helpers import run_async_test
+            result = run_async_test(test_coro())
             
             # Check that communicate_with_mcp_server was called with correct arguments
             mock_communicate.assert_called_once_with(
