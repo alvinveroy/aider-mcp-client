@@ -1,8 +1,8 @@
-# MCP Client
+# Aider MCP Client
 
 A Python client for interacting with MCP (Model Control Protocol) servers, with Aider integration support. This client primarily focuses on fetching documentation from Context7 MCP servers.
 
-[![PyPI version](https://badge.fury.io/py/mcp_client.svg)](https://badge.fury.io/py/mcp_client)
+[![PyPI version](https://badge.fury.io/py/aider-mcp-client.svg)](https://badge.fury.io/py/aider-mcp-client)
 
 ## Features
 
