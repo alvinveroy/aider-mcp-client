@@ -111,11 +111,7 @@ async def communicate_with_mcp_server(
     import sys
     
     # Define test mode flag for reuse
-    is_test_mode = (
-        os.environ.get("AIDER_MCP_TEST_MODE") == "true"
-        or 'unittest' in sys.modules
-        or 'pytest' in sys.modules
-    )
+    is_test_mode = (os.environ.get("AIDER_MCP_TEST_MODE") == "true" or 'unittest' in sys.modules or 'pytest' in sys.modules)
     
     if is_test_mode:
         logger.debug("Test mode: Preparing mock data")
@@ -150,9 +146,7 @@ async def communicate_with_mcp_server(
     import sys
     
     for server_name, server_config in config.get("mcpServers", {}).items():
-        if (server_config.get("command") == command
-                and server_config.get("args") == args
-                and server_config.get("sdk", False)):
+        if (server_config.get("command") == command and server_config.get("args") == args and server_config.get("sdk", False)):
             use_sdk = True
             logger.debug(f"Using MCP SDK for server {server_name}")
             break
@@ -167,8 +161,7 @@ async def communicate_with_mcp_server(
     try:
         # Start the MCP server process with security checks
         # Validate command and args to prevent command injection
-        if (not isinstance(command, str) or 
-                any(not isinstance(arg, str) for arg in args)):
+        if (not isinstance(command, str) or any(not isinstance(arg, str) for arg in args)):
             logger.error(
                 "Invalid command or arguments type - potential injection attempt"
             )
@@ -200,8 +193,7 @@ async def communicate_with_mcp_server(
             if process.stderr.readable():
                 stderr_line = process.stderr.readline()
                 if stderr_line:
-                    if ("MCP Server running on stdio" in stderr_line
-                            or "Documentation MCP Server running on stdio" in stderr_line):
+                    if ("MCP Server running on stdio" in stderr_line or "Documentation MCP Server running on stdio" in stderr_line):
                         logger.info(f"Server startup message detected: {stderr_line.strip()}")
                         server_ready = True
                         break
@@ -332,7 +324,6 @@ async def communicate_with_mcp_server(
                         chunk = process.stdout.read(4096)  # Read a chunk of data
                         if not chunk:  # End of file
                             break
-                            
                         buffer += chunk
                         # Try to extract complete JSON objects from the buffer
                         while True:
@@ -568,9 +559,6 @@ async def communicate_with_mcp_sdk(command, args, request_data, timeout=30):
     except Exception as e:
         logger.error(f"Error communicating with MCP server using SDK: {e}")
         raise
-
-# Import SDK functions directly in the client module for easier mocking in tests
-
 
 
 async def resolve_library_id_sdk(
@@ -950,7 +938,7 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
     sanitized_request = request_data.copy() if isinstance(request_data, dict) else {}
     if isinstance(sanitized_request, dict) and "args" in sanitized_request:
         sanitized_request["args"] = {
-            k: "[REDACTED]" if k.lower() in ["key", "token", "secret", "password", "credential", "auth"] else v 
+            k: "[REDACTED]" if k.lower() in ["key", "token", "secret", "password", "credential", "auth"] else v
             for k, v in sanitized_request["args"].items()
         }
     logger.debug(f"Sending request to MCP server: {json.dumps(sanitized_request)}")
@@ -972,7 +960,7 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         # Print sanitized response for debugging
         if response and isinstance(response, dict):
             sanitized_response = {
-                k: "[REDACTED]" if k.lower() in ["key", "token", "secret", "password", "credential", "auth"] 
+                k: "[REDACTED]" if k.lower() in ["key", "token", "secret", "password", "credential", "auth"]
                 else v for k, v in response.items()
             }
             logger.debug(f"Response from MCP server: {json.dumps(sanitized_response)}")
@@ -1020,10 +1008,7 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         # Otherwise display immediately
         if output_buffer is not None and isinstance(output_buffer, list):
             # Store the documentation in the buffer for later display
-            if (response and isinstance(response, dict)
-                    and ('snippets' in response
-                         or ('result' in response
-                             and isinstance(response['result'], dict)))):
+            if (response and isinstance(response, dict) and ('snippets' in response or ('result' in response and isinstance(response['result'], dict)))):
                 output_buffer.append((response, library_id))
         elif display_output:
             # Display immediately
@@ -1052,11 +1037,6 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
     if ('unittest' in sys.modules) and mock_data:
         logger.debug(f"Returning mock data after mock call: {mock_data}")
         return mock_data
-        
-    # If we're in a test environment and have mock data, return it now
-    if ('unittest' in sys.modules) and mock_data:
-        logger.debug(f"Returning mock data after mock call: {mock_data}")
-        return mock_data
 
 
 def list_supported_libraries():
@@ -1074,7 +1054,7 @@ def display_documentation(response, library_id):
         
         for i, snippet in enumerate(response["snippets"]):
             # Print snippet header
-            print(f"\n--- Snippet {i+1} ---")
+            print(f"\n--- Snippet {i + 1} ---")
             
             if isinstance(snippet, dict):
                 if "title" in snippet:
@@ -1186,10 +1166,10 @@ async def async_main():
             # Create a buffer to store documentation if we're displaying it
             output_buffer = [] if not output_file else None
             
-            result = await fetch_documentation(args.library_id, args.topic, args.tokens, 
-                                     custom_timeout=timeout, server_name=server_name,
-                                     display_output=False,  # Don't display immediately
-                                     output_buffer=output_buffer)
+            result = await fetch_documentation(args.library_id, args.topic, args.tokens,
+                                              custom_timeout=timeout, server_name=server_name,
+                                              display_output=False,  # Don't display immediately
+                                              output_buffer=output_buffer)
             
             # If output file is specified, save to that file instead of default
             if output_file and result:
@@ -1263,12 +1243,9 @@ async def async_main():
         sys.exit(1)
 
 
-
-
 def main():
     """Entry point for the CLI."""
     asyncio.run(async_main())
-
 
 
 if __name__ == "__main__":
