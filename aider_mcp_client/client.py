@@ -1020,7 +1020,7 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         # Otherwise display immediately
         if output_buffer is not None and isinstance(output_buffer, list):
             # Store the documentation in the buffer for later display
-            if (response and (isinstance(response, dict)
+            if (response and isinstance(response, dict)
                     and ('snippets' in response
                          or ('result' in response
                              and isinstance(response['result'], dict)))):
