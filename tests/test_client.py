@@ -1,14 +1,12 @@
 import unittest
 import json
-import os
 import tempfile
 import asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 from aider_mcp_client.client import (
-    load_config, 
-    communicate_with_mcp_server, 
-    resolve_library_id, 
+    load_config,
+    resolve_library_id,
     fetch_documentation,
     list_supported_libraries,
     async_main

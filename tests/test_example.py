@@ -1,6 +1,5 @@
 import unittest
-import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from aider_mcp_client.mcp_sdk_client import resolve_library_id_sdk, fetch_documentation_sdk
 
 class TestMcpExample(unittest.TestCase):
