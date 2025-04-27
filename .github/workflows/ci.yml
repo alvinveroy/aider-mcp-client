@@ -70,6 +70,12 @@ jobs:
           python -m build
           ls -la dist/
 
+      - name: Extract version from built package
+        id: extract-version
+        run: |
+          VERSION=$(python -c "from importlib.metadata import version; print(version('aider-mcp-client'))")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
