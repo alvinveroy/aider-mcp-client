@@ -21,7 +21,6 @@ except ImportError:
 logger = logging.getLogger("aider_mcp_client.mcp_sdk_client")
 
 
-
 async def connect_to_mcp_server(
     command: str,
     args: List[str],
@@ -68,7 +67,6 @@ async def connect_to_mcp_server(
     except Exception as e:
         logger.error(f"Failed to connect to MCP server: {e}")
         return None
-
 
 
 async def call_mcp_tool(
@@ -303,7 +301,6 @@ async def call_mcp_tool(
                     process.kill()
             except Exception as e:
                 logger.error(f"Error terminating process: {e}")
-
 
 
 async def fetch_documentation_sdk(
@@ -723,7 +720,6 @@ async def fetch_documentation_sdk(
     except Exception as e:
         logger.error(f"Error fetching documentation: {e}")
         return None
-
 
 
 async def resolve_library_id_sdk(
