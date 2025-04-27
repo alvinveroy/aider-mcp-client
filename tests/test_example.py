@@ -14,18 +14,22 @@ class TestMcpExample(unittest.TestCase):
         
         # Create a test coroutine to run the async code
         async def test_coro():
-            result = await resolve_library_id_sdk("next.js")
+            # Set _is_test=True to bypass the early return in test mode
+            result = await resolve_library_id_sdk("next.js", _is_test=False)
             self.assertEqual(result, "vercel/nextjs")
             mock_call_tool.assert_called_once_with(
                 command="npx",
                 args=["-y", "@upstash/context7-mcp@latest"],
                 tool_name="resolve-library-id",
                 tool_args={"libraryName": "next.js"},
-                timeout=30
+                timeout=30,
+                new_event_loop=False,
+                _is_test=False
             )
         
         # Run the test coroutine
-        asyncio.run(test_coro())
+        from tests.test_helpers import run_async_test
+        run_async_test(test_coro())
     
     @patch('aider_mcp_client.mcp_sdk_client.call_mcp_tool')
     def test_fetch_documentation_sdk(self, mock_call_tool):
@@ -42,10 +46,12 @@ class TestMcpExample(unittest.TestCase):
         
         # Create a test coroutine to run the async code
         async def test_coro():
+            # Set _is_test=False to bypass the early return in test mode
             result = await fetch_documentation_sdk(
                 library_id="vercel/nextjs",
                 topic="routing",
-                tokens=1000
+                tokens=1000,
+                _is_test=False
             )
             self.assertEqual(result, mock_response)
             mock_call_tool.assert_called_once_with(
@@ -57,11 +63,14 @@ class TestMcpExample(unittest.TestCase):
                     "topic": "routing",
                     "tokens": 1000  # Use the value passed to the function
                 },
-                timeout=60  # The fetch_documentation_sdk function uses a 60 second timeout
+                timeout=60,  # The fetch_documentation_sdk function uses a 60 second timeout
+                new_event_loop=False,
+                _is_test=False
             )
         
         # Run the test coroutine
-        asyncio.run(test_coro())
+        from tests.test_helpers import run_async_test
+        run_async_test(test_coro())
 
 if __name__ == '__main__':
     unittest.main()
