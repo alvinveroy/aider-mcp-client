@@ -94,8 +94,9 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
     import sys
     
     # Define test mode flag for reuse
-    is_test_mode = (os.environ.get("AIDER_MCP_TEST_MODE") == "true" or 
-                    'unittest' in sys.modules or 'pytest' in sys.modules)
+    is_test_mode = (os.environ.get("AIDER_MCP_TEST_MODE") == "true"
+                    or 'unittest' in sys.modules
+                    or 'pytest' in sys.modules)
     
     if is_test_mode:
         logger.debug("Test mode: Preparing mock data")
@@ -130,9 +131,9 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
     import sys
     
     for server_name, server_config in config.get("mcpServers", {}).items():
-        if (server_config.get("command") == command and
-            server_config.get("args") == args and
-            server_config.get("sdk", False)):
+        if (server_config.get("command") == command
+                and server_config.get("args") == args
+                and server_config.get("sdk", False)):
             use_sdk = True
             logger.debug(f"Using MCP SDK for server {server_name}")
             break
@@ -177,7 +178,8 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
             if process.stderr.readable():
                 stderr_line = process.stderr.readline()
                 if stderr_line:
-                    if "MCP Server running on stdio" in stderr_line or "Documentation MCP Server running on stdio" in stderr_line:
+                    if ("MCP Server running on stdio" in stderr_line or 
+                        "Documentation MCP Server running on stdio" in stderr_line):
                         logger.info(f"Server startup message detected: {stderr_line.strip()}")
                         server_ready = True
                         break
@@ -546,6 +548,8 @@ async def communicate_with_mcp_sdk(command, args, request_data, timeout=30):
         raise
 
 # Import SDK functions directly in the client module for easier mocking in tests
+
+
 
 async def resolve_library_id_sdk(
     library_name: str,
@@ -943,8 +947,10 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         
         # Print sanitized response for debugging
         if response and isinstance(response, dict):
-            sanitized_response = {k: "[REDACTED]" if k.lower() in ["key", "token", "secret", "password", "credential", "auth"] 
-                                 else v for k, v in response.items()}
+            sanitized_response = {
+                k: "[REDACTED]" if k.lower() in ["key", "token", "secret", "password", "credential", "auth"] 
+                else v for k, v in response.items()
+            }
             logger.debug(f"Response from MCP server: {json.dumps(sanitized_response)}")
         else:
             logger.debug("Response from MCP server: [None or non-dict response]")
@@ -1232,9 +1238,13 @@ async def async_main():
         sys.exit(1)
 
 
+
+
 def main():
     """Entry point for the CLI."""
     asyncio.run(async_main())
+
+
 
 if __name__ == "__main__":
     main()
