@@ -189,7 +189,7 @@ async def resolve_library_id_sdk(
     result = await call_mcp_tool(
         command=command,
         args=args,
-        tool_name="resolve-library",
+        tool_name="resolve-library-id",  # Changed from resolve-library to resolve-library-id
         tool_args=tool_args,
         timeout=timeout
     )

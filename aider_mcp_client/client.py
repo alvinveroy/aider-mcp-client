@@ -433,9 +433,24 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
     
     logger.info(f"Using timeout of {timeout} seconds for resolution with {server_name} server")
     
-    # Construct MCP request for resolve-library tool
+    # Use the SDK implementation if available
+    if HAS_MCP_SDK:
+        try:
+            from aider_mcp_client.mcp_sdk_client import resolve_library_id_sdk
+            logger.info(f"Using MCP SDK to resolve library ID for '{library_name}'")
+            return await resolve_library_id_sdk(
+                library_name=library_name,
+                command=command,
+                args=args,
+                timeout=timeout
+            )
+        except Exception as e:
+            logger.error(f"Error using SDK to resolve library ID: {str(e)}")
+            logger.info("Falling back to direct MCP communication")
+    
+    # Construct MCP request for resolve-library-id tool (note the name change)
     request_data = {
-        "tool": "resolve-library",
+        "tool": "resolve-library-id",  # Changed from resolve-library to resolve-library-id
         "args": {
             "libraryName": library_name
         }
@@ -497,6 +512,23 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
                 logger.warning(f"Could not resolve library ID. Using original: '{library_id}'")
         except Exception as e:
             logger.warning(f"Error resolving library ID: {str(e)}. Using original: '{library_id}'")
+
+    # Use the SDK implementation if available
+    if HAS_MCP_SDK:
+        try:
+            from aider_mcp_client.mcp_sdk_client import fetch_documentation_sdk
+            logger.info(f"Using MCP SDK to fetch documentation for '{library_id}'")
+            return await fetch_documentation_sdk(
+                library_id=library_id,
+                topic=topic,
+                tokens=tokens,
+                command=command,
+                args=args,
+                timeout=timeout
+            )
+        except Exception as e:
+            logger.error(f"Error using SDK to fetch documentation: {str(e)}")
+            logger.info("Falling back to direct MCP communication")
 
     # Construct MCP request for get-library-docs tool
     request_data = {

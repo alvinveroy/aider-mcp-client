@@ -19,7 +19,7 @@ class TestMcpExample(unittest.TestCase):
             mock_call_tool.assert_called_once_with(
                 command="npx",
                 args=["-y", "@upstash/context7-mcp@latest"],
-                tool_name="resolve-library",
+                tool_name="resolve-library-id",
                 tool_args={"libraryName": "next.js"},
                 timeout=30
             )
