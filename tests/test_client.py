@@ -305,7 +305,7 @@ class TestAiderMcpClient(unittest.TestCase):
             library_id, result = loop.run_until_complete(test_coro())
             
             # Verify the results
-            self.assertEqual(library_id, "facebook/react")
+            self.assertEqual(library_id, "react/react")
             self.assertEqual(result["library"], "react/react")
             self.assertEqual(len(result["snippets"]), 2)
             self.assertEqual(result["totalTokens"], 2500)
@@ -353,7 +353,7 @@ class TestAiderMcpClient(unittest.TestCase):
     def test_async_main_integration(self, mock_parse_args, mock_fetch_docs, mock_resolve_id, mock_argv):
         """Test the async_main function that integrates all components"""
         # Mock the resolve_library_id response
-        mock_resolve_id.return_value = "facebook/react"
+        mock_resolve_id.return_value = "react/react"
         
         # Mock the fetch_documentation response
         mock_fetch_docs.return_value = {
@@ -369,7 +369,7 @@ class TestAiderMcpClient(unittest.TestCase):
         from argparse import Namespace
         mock_parse_args.return_value = Namespace(
             command="fetch",
-            library="react",
+            library_id="react",
             topic="components",
             tokens=3000,
             server="context7",
@@ -377,7 +377,9 @@ class TestAiderMcpClient(unittest.TestCase):
             verbose=False,
             quiet=False,
             json=False,
-            version=False
+            version=False,
+            timeout=None,
+            output=None
         )
         
         # Create a test coroutine to run the async code
@@ -386,7 +388,7 @@ class TestAiderMcpClient(unittest.TestCase):
             
             # Verify the mocks were called with correct arguments
             mock_resolve_id.assert_called_once_with("react", custom_timeout=None, server_name="context7")
-            mock_fetch_docs.assert_called_once_with("facebook/react", "components", 3000, custom_timeout=None, server_name="context7")
+            mock_fetch_docs.assert_called_once_with("react/react", "components", 3000, custom_timeout=None, server_name="context7")
         
         # Run the test coroutine
         from tests.test_helpers import run_async_test

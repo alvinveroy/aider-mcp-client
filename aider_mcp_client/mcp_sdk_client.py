@@ -11,8 +11,13 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any, Union
 
-from mcp import ClientSession, StdioServerParameters, types
-from mcp.client.stdio import stdio_client
+try:
+    from mcp import ClientSession, StdioServerParameters, types
+    from mcp.client.stdio import stdio_client
+    HAS_MCP_SDK = True
+except ImportError:
+    HAS_MCP_SDK = False
+    logging.warning("MCP SDK not found. Some features will be limited. Install with: pip install mcp-sdk")
 
 logger = logging.getLogger("aider_mcp_client.mcp_sdk_client")
 
