@@ -673,6 +673,8 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(aider_output, f, indent=2, ensure_ascii=False)
             logger.info(f"Documentation saved to {output_file}")
+            if display_output:
+                print(f"Documentation saved to {output_file}")
         except Exception as e:
             logger.error(f"Error saving documentation to file: {str(e)}")
             

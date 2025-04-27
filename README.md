@@ -15,18 +15,18 @@ A Python client for interacting with MCP (Model Control Protocol) servers, with 
 
 From PyPI:
 ```bash
-pip install mcp_client
+pip install aider-mcp-client
 ```
 
 From GitHub:
 ```bash
-pip install git+https://github.com/alvinveroy/mcp_client.git
+pip install git+https://github.com/alvinveroy/aider-mcp-client.git
 ```
 
 For development:
 ```bash
-git clone https://github.com/alvinveroy/mcp_client.git
-cd mcp_client
+git clone https://github.com/alvinveroy/aider-mcp-client.git
+cd aider-mcp-client
 pip install -e .
 ```
 
@@ -35,75 +35,81 @@ pip install -e .
 After installation, you can use the command-line interface:
 
 ```bash
-mcp_client <command> [args...]
+aider_mcp_client <command> [args...]
 ```
 
 Or as a module:
 ```bash
-python -m mcp_client.client <command> [args...]
+python -m aider_mcp_client.client <command> [args...]
 ```
 
 Example commands:
 ```bash
 # Show version information
-mcp_client
+aider_mcp_client
 # or
-mcp_client -v
+aider_mcp_client -v
 # or
-mcp_client --version
+aider_mcp_client --version
 
 # Fetch documentation for a specific library
-mcp_client fetch vercel/nextjs
+aider_mcp_client fetch vercel/nextjs
 
 # Fetch documentation with a specific topic and token limit
-mcp_client fetch vercel/nextjs --topic "routing" --tokens 10000
+aider_mcp_client fetch vercel/nextjs --topic "routing" --tokens 10000
 ```
 
 ## Configuration
 
-The client uses a configuration file located at `~/.mcp_client/config.json`. If this file doesn't exist, default settings are used.
+The client uses a configuration file located at `~/.aider-mcp-client/config.json`. If this file doesn't exist, default settings are used.
 
 Default configuration:
 ```json
 {
-  "mcp_server": {
-    "command": "npx",
-    "args": ["-y", "@upstash/context7-mcp@latest"],
-    "tool": "fetch_documentation"
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"],
+      "enabled": true,
+      "timeout": 30
+    }
   }
 }
 ```
 
 You can create a custom configuration file:
 ```bash
-mkdir -p ~/.mcp_client
+mkdir -p ~/.aider-mcp-client
 echo '{
-  "mcp_server": {
-    "command": "npx",
-    "args": ["-y", "@upstash/context7-mcp@latest"],
-    "tool": "fetch_documentation"
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"],
+      "enabled": true,
+      "timeout": 30
+    }
   }
-}' > ~/.mcp_client/config.json
+}' > ~/.aider-mcp-client/config.json
 ```
 
 ## Available Commands
 
 - `version`: Display version information
   ```bash
-  mcp_client
+  aider_mcp_client
   # or
-  mcp_client -v
+  aider_mcp_client -v
   # or
-  mcp_client --version
+  aider_mcp_client --version
   ```
 
 - `fetch`: Retrieve documentation for a specific library
   ```bash
-  mcp_client fetch <library_id> [--topic "topic"] [--tokens 5000]
+  aider_mcp_client fetch <library_id> [--topic "topic"] [--tokens 5000]
   ```
   or
   ```bash
-  python -m mcp_client.client fetch <library_id> [--topic "topic"] [--tokens 5000]
+  python -m aider_mcp_client.client fetch <library_id> [--topic "topic"] [--tokens 5000]
   ```
 
 ## Aider Integration
@@ -123,12 +129,21 @@ The client outputs JSON in Aider-compatible format:
 
 ### Running Tests
 ```bash
+# Install pytest first
+pip install pytest
+
+# Then run the tests
+python -m pytest tests/
+```
+
+You can also use unittest if you prefer:
+```bash
 python -m unittest discover tests
 ```
 
 ### Code Structure
-- `mcp_client/client.py`: Main client implementation with CLI interface
-- `mcp_client/config.json`: Default configuration template
+- `aider_mcp_client/client.py`: Main client implementation with CLI interface
+- `aider_mcp_client/config.json`: Default configuration template
 - `tests/`: Unit tests
 
 
