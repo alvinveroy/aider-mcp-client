@@ -93,13 +93,17 @@ class TestAiderMcpClient(unittest.TestCase):
     
     @patch('aider_mcp_client.client.subprocess.Popen')
     @patch('sys.modules', {'unittest': True})  # Simulate running in unittest environment
-    def test_communicate_with_mcp_server(self, mock_popen):
+    @patch('aider_mcp_client.client.os')  # Add mock for os module
+    def test_communicate_with_mcp_server(self, mock_os, mock_popen):
         """Test communication with MCP server"""
         # Mock the subprocess.Popen
         mock_process = MagicMock()
         mock_process.stdout.readline.return_value = '{"result": "test_result"}\n'
         mock_process.poll.return_value = None
         mock_popen.return_value = mock_process
+        
+        # Mock os.environ.get to return test mode
+        mock_os.environ.get.return_value = "false"
         
         request_data = {"tool": "test-tool", "args": {"test_arg": "test_value"}}
         
@@ -144,7 +148,7 @@ class TestAiderMcpClient(unittest.TestCase):
         async def test_coro():
             # Patch the MCP SDK client to avoid actual SDK calls
             with patch('aider_mcp_client.client.resolve_library_id_sdk') as mock_sdk:
-                mock_sdk.return_value = "test/library"
+                mock_sdk.return_value = "org/library"  # Match the expected result
                 return await resolve_library_id("library")
         
         # Run the test coroutine
@@ -172,6 +176,12 @@ class TestAiderMcpClient(unittest.TestCase):
             "totalTokens": 1000,
             "lastUpdated": "2025-04-27"
         }
+        
+        # Make sure the mock will be called by forcing SDK to be unavailable
+        with patch('aider_mcp_client.client.HAS_MCP_SDK', False):
+        
+        # Make sure the mock will be called by forcing SDK to be unavailable
+        with patch('aider_mcp_client.client.HAS_MCP_SDK', False):
         
         with patch('builtins.print') as mock_print:
             # Create a test coroutine to run the async code
@@ -383,7 +393,9 @@ class TestAiderMcpClient(unittest.TestCase):
             await async_main()
             
             # Verify the mock was called with correct arguments
-            mock_fetch_docs.assert_called_once_with("react", "components", 3000, custom_timeout=None, server_name="context7")
+            mock_fetch_docs.assert_called_once_with("react", "components", 3000, 
+                                                   custom_timeout=None, server_name="context7", 
+                                                   display_output=False, output_buffer=[])
         
         # Run the test coroutine
         from tests.test_helpers import run_async_test
