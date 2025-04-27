@@ -225,7 +225,7 @@ async def call_mcp_tool(
                                         return None
                                 
                                 # Call the tool with timeout
-                                logger.debug(f"Calling MCP tool: {tool_name} with args: {tool_args}")
+                                logger.debug("Calling MCP tool: %s with args: %s", tool_name, tool_args)
                                 try:
                                     # Use asyncio.wait_for with explicit timeout
                                     result = await asyncio.wait_for(
@@ -236,7 +236,7 @@ async def call_mcp_tool(
                                     
                                     # Debug the result structure (without potentially sensitive data)
                                     if hasattr(result, 'result'):
-                                        logger.debug(f"Result has 'result' attribute of type: {type(result.result)}")
+                                        logger.debug("Result has 'result' attribute of type: %s", type(result.result))
                                         # Avoid logging potentially sensitive data
                                         logger.debug("Result.result details: [content redacted for security]")
                                     
@@ -255,7 +255,7 @@ async def call_mcp_tool(
                                         
                                         # For documentation fetching, handle the result
                                         elif tool_name == "get-library-docs":
-                                            logger.debug(f"Processing get-library-docs result")
+                                            logger.debug("Processing get-library-docs result")
                                             # Return the result directly for further processing
                                             return result
                                     
@@ -660,7 +660,7 @@ async def fetch_documentation_sdk(
             # If it's a CallToolResult, extract the result field
             if hasattr(result, 'result'):
                 result_data = result.result
-                logger.debug(f"Extracted result data type: {type(result_data)}")
+                logger.debug("Extracted result data type: %s", type(result_data))
                 
                 # If result_data is a dictionary with content
                 if isinstance(result_data, dict) and "content" in result_data:
