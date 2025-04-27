@@ -744,7 +744,6 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
 
 async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=None, server_name="context7", display_output=True, output_buffer=None):
     """Fetch JSON documentation from an MCP server."""
-    """Fetch JSON documentation from an MCP server."""
     # For test mode, return fixed values to match test expectations
     mock_data = None
     
