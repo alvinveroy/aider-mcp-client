@@ -221,7 +221,7 @@ async def call_mcp_tool(
                                         logger.info("Using 'resolve-library' instead of 'resolve-library-id'")
                                         tool_name = "resolve-library"
                                     elif not any(t for t in available_tools if "docs" in t.lower() or "library" in t.lower()):
-                                        logger.error(f"No suitable tools found for documentation or library resolution")
+                                        logger.error("No suitable tools found for documentation or library resolution")
                                         return None
                                 
                                 # Call the tool with timeout
@@ -364,7 +364,7 @@ async def fetch_documentation_sdk(
                     raise
             
         # First check if the server is responsive
-        logger.debug(f"Checking connection to MCP server before fetching documentation")
+        logger.debug("Checking connection to MCP server before fetching documentation")
         server_params = StdioServerParameters(
             command=command,
             args=args,
@@ -481,7 +481,7 @@ async def fetch_documentation_sdk(
                                     logger.error(f"Error calling get-library-docs: {tool_error}")
                                     return None
                         except asyncio.TimeoutError:
-                            logger.error(f"Timeout during MCP server initialization or tool listing")
+                            logger.error("Timeout during MCP server initialization or tool listing")
                             return None
                         except Exception as init_error:
                             logger.error(f"Error during MCP server initialization: {init_error}")
