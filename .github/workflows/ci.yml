@@ -1,6 +1,9 @@
 name: CI
 
-on: [push, pull_request]
+on: 
+  push:
+    branches: [ main ]
+  pull_request:
 
 jobs:
   test:
@@ -42,3 +45,52 @@ jobs:
         source .venv/bin/activate
         uv pip install flake8
         flake8 aider_mcp_client
+
+  release:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Bump version and create tag
+        id: bump-version
+        uses: mathieudutour/github-tag-action@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_version: |
+            if [ "${{ github.event_name }}" = "push" ]; then
+              git fetch --tags
+              latest_tag=$(git describe --tags --abbrev=0)
+              if [ -z "$latest_tag" ]; then
+                echo "0.1.0"
+              else
+                echo $latest_tag | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g'
+              fi
+            fi
+
+      - name: Update version in files
+        run: |
+          echo "__version__ = \"${{ steps.bump-version.outputs.new_tag }}\"" > aider_mcp_client/__init__.py
+          sed -i "s/version=\"[^\"]*\"/version=\"${{ steps.bump-version.outputs.new_tag }}\"/g" setup.py
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.bump-version.outputs.new_tag }}
+          tag_name: ${{ steps.bump-version.outputs.new_tag }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_KEY }}
