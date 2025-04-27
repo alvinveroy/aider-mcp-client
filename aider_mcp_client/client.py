@@ -23,7 +23,7 @@ except ImportError:
 logging.basicConfig(
     level=logging.WARNING,  # Default to WARNING to suppress INFO logs
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
+    handlers=[logging.FileHandler("mcp_client.log")]  # Log to file instead of console
 )
 logger = logging.getLogger("aider_mcp_client")
 
@@ -628,8 +628,6 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         # Display the documentation in the console if requested
         if display_output:
             display_documentation(response, library_id)
-        else:
-            logger.info("Output not displayed in console (--output flag used)")
         
         # Save documentation to a JSON file
         output_file = f"{library_id.replace('/', '_')}_docs.json"
@@ -656,42 +654,25 @@ def list_supported_libraries():
 
 def display_documentation(response, library_id):
     """Helper function to display documentation in the console."""
-    # Temporarily set logger to INFO level to ensure output is visible
-    original_level = logger.level
-    logger.setLevel(logging.INFO)
-    
     if isinstance(response, dict) and "snippets" in response and response["snippets"]:
-        # Log documentation header
-        doc_header = f"\n=== Documentation for {library_id} ===\n"
-        print(doc_header)
-        logger.info(doc_header)
+        # Print documentation header
+        print(f"\n=== Documentation for {library_id} ===\n")
         
         for i, snippet in enumerate(response["snippets"]):
-            # Log snippet header
-            snippet_header = f"\n--- Snippet {i+1} ---"
-            print(snippet_header)
-            logger.info(snippet_header)
+            # Print snippet header
+            print(f"\n--- Snippet {i+1} ---")
             
             if isinstance(snippet, dict):
                 if "title" in snippet:
-                    title_line = f"Title: {snippet['title']}"
-                    print(title_line)
-                    logger.info(title_line)
+                    print(f"Title: {snippet['title']}")
                 
                 if "content" in snippet:
-                    content = f"\n{snippet['content']}\n"
-                    print(content)
-                    # Log content with proper formatting
-                    for line in snippet['content'].split('\n'):
-                        logger.info(line)
+                    print(f"\n{snippet['content']}\n")
             else:
                 print(snippet)
-                logger.info(str(snippet))
         
-        # Log token count
-        token_info = f"\nTotal Tokens: {response.get('totalTokens', 0)}"
-        print(token_info)
-        logger.info(token_info)
+        # Print token count
+        print(f"\nTotal Tokens: {response.get('totalTokens', 0)}")
     else:
         # Create aider_output for JSON formatting
         aider_output = {
@@ -704,11 +685,6 @@ def display_documentation(response, library_id):
         # Fallback to printing the full JSON if snippets not found
         formatted_output = json.dumps(aider_output, indent=2, ensure_ascii=False)
         print(formatted_output)
-        logger.info("Documentation output (JSON format):")
-        logger.info(formatted_output)
-    
-    # Restore original logger level
-    logger.setLevel(original_level)
 
 async def async_main():
     """Async entry point for the CLI."""
@@ -758,15 +734,13 @@ async def async_main():
     # Set logging level based on command line arguments
     if hasattr(args, 'debug') and args.debug:
         logger.setLevel(logging.DEBUG)
-        logger.debug("Debug logging enabled")
     elif hasattr(args, 'verbose') and args.verbose:
         logger.setLevel(logging.INFO)
-        logger.info("Verbose logging enabled")
     elif hasattr(args, 'quiet') and args.quiet:
         logger.setLevel(logging.WARNING)
     else:
-        # By default, use INFO level for better visibility of documentation output
-        logger.setLevel(logging.INFO)
+        # By default, use WARNING level to suppress info logs
+        logger.setLevel(logging.WARNING)
 
     if args.version:
         verbose()
@@ -810,7 +784,6 @@ async def async_main():
                 try:
                     with open(output_file, "w", encoding="utf-8") as f:
                         json.dump(result, f, indent=2, ensure_ascii=False)
-                    logger.info(f"Documentation saved to {output_file}")
                     print(f"Documentation saved to {output_file}")
                 except Exception as e:
                     logger.error(f"Error saving documentation to specified file: {str(e)}")
