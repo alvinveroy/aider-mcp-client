@@ -1,0 +1,3 @@
+include mcp_client/config.json
+include LICENSE
+include README.md

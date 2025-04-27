@@ -11,20 +11,32 @@ A Python client for interacting with MCP (Model Control Protocol) servers, with 
 
 ## Installation
 
+From PyPI:
 ```bash
-pip install git+https://github.com/[your-username]/mcp_client.git
+pip install mcp-client
+```
+
+From GitHub:
+```bash
+pip install git+https://github.com/alvinveroy/mcp-client.git
 ```
 
 For development:
 ```bash
-git clone https://github.com/[your-username]/mcp_client.git
-cd mcp_client
+git clone https://github.com/alvinveroy/mcp-client.git
+cd mcp-client
 pip install -e .
 ```
 
 ## Usage
 
-Basic command structure:
+After installation, you can use the command-line interface:
+
+```bash
+mcp-client <command> [args...]
+```
+
+Or as a module:
 ```bash
 python -m mcp_client.client <command> [args...]
 ```
@@ -32,10 +44,10 @@ python -m mcp_client.client <command> [args...]
 Example commands:
 ```bash
 # Fetch documentation for a specific library
-python -m mcp_client.client fetch vercel/nextjs
+mcp-client fetch vercel/nextjs
 
 # Fetch documentation with a specific topic and token limit
-python -m mcp_client.client fetch vercel/nextjs --topic "routing" --tokens 10000
+mcp-client fetch vercel/nextjs --topic "routing" --tokens 10000
 ```
 
 ## Configuration
