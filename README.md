@@ -1,13 +1,13 @@
 # MCP Client
 
-A Python client for interacting with MCP (Model Control Protocol) servers, with Aider integration support.
+A Python client for interacting with MCP (Model Control Protocol) servers, with Aider integration support. This client primarily focuses on fetching documentation from Context7 MCP servers.
 
 ## Features
 
 - Simple configuration via JSON
 - Command-line interface
 - Aider-compatible JSON output
-- Mock server responses for development
+- Integration with Context7 MCP servers
 
 ## Installation
 
@@ -26,43 +26,62 @@ pip install -e .
 
 Basic command structure:
 ```bash
-python -m mcp_client.mcp_client.client <command> [args...]
+python -m mcp_client.client <command> [args...]
 ```
 
 Example commands:
 ```bash
-# Get documentation
-python -m mcp_client.mcp_client.client get_documentation
+# Fetch documentation for a specific library
+python -m mcp_client.client fetch vercel/nextjs
 
-# Run with custom server
-python -m mcp_client.mcp_client.client --server MyServer get_status
+# Fetch documentation with a specific topic and token limit
+python -m mcp_client.client fetch vercel/nextjs --topic "routing" --tokens 10000
 ```
 
 ## Configuration
 
-Default configuration (stored in `mcp_client/config.json`):
+The client uses a configuration file located at `~/.mcp_client/config.json`. If this file doesn't exist, default settings are used.
+
+Default configuration:
 ```json
 {
-    "server": "Context7",
-    "host": "localhost",
-    "port": 8000,
-    "timeout": 30
+  "mcp_server": {
+    "command": "npx",
+    "args": ["-y", "@upstash/context7-mcp@latest"],
+    "tool": "fetch_documentation"
+  }
 }
 ```
 
-Override defaults by creating a custom config file:
+You can create a custom configuration file:
 ```bash
-python -m mcp_client.mcp_client.client --config /path/to/config.json <command>
+mkdir -p ~/.mcp_client
+echo '{
+  "mcp_server": {
+    "command": "npx",
+    "args": ["-y", "@upstash/context7-mcp@latest"],
+    "tool": "fetch_documentation"
+  }
+}' > ~/.mcp_client/config.json
 ```
+
+## Available Commands
+
+- `fetch`: Retrieve documentation for a specific library
+  ```bash
+  python -m mcp_client.client fetch <library_id> [--topic "topic"] [--tokens 5000]
+  ```
 
 ## Aider Integration
 
 The client outputs JSON in Aider-compatible format:
 ```json
 {
-    "server": "Context7",
-    "status": "success",
-    "response": "Command output here"
+  "content": "...",
+  "library": "library_name",
+  "snippets": [...],
+  "totalTokens": 5000,
+  "lastUpdated": "timestamp"
 }
 ```
 
@@ -70,12 +89,12 @@ The client outputs JSON in Aider-compatible format:
 
 ### Running Tests
 ```bash
-python -m unittest discover mcp_client/tests
+python -m unittest discover tests
 ```
 
 ### Code Structure
-- `client.py`: Main CLI implementation
-- `config.json`: Default configuration
+- `mcp_client/client.py`: Main client implementation with CLI interface
+- `mcp_client/config.json`: Default configuration template
 - `tests/`: Unit tests
 
 ### Contributing
