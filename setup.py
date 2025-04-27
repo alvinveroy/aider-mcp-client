@@ -11,6 +11,7 @@ setup(
     entry_points={
         "console_scripts": [
             "aider-mcp-client=aider_mcp_client.client:async_main",
+            "aider_mcp_client=aider_mcp_client.client:async_main",
         ],
     },
 )
