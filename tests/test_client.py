@@ -183,7 +183,9 @@ class TestAiderMcpClient(unittest.TestCase):
         with patch('aider_mcp_client.client.HAS_MCP_SDK', False):
             # Create a test coroutine to run the async code
             async def test_coro():
-                return await fetch_documentation("library", "topic", 6000, _test_mode=True)
+                # We need to patch os.environ.get to ensure _test_mode works correctly
+                with patch('os.environ.get', return_value="true"):
+                    return await fetch_documentation("library", "topic", 6000)
             
             # Run the test coroutine
             loop = asyncio.get_event_loop()
@@ -242,7 +244,9 @@ class TestAiderMcpClient(unittest.TestCase):
                         "totalTokens": 6000,
                         "lastUpdated": ""
                     }
-                    return await fetch_documentation("org/library", "topic", 6000, _test_mode=True)
+                    # We need to patch os.environ.get to ensure _test_mode works correctly
+                    with patch('os.environ.get', return_value="true"):
+                        return await fetch_documentation("org/library", "topic", 6000)
             
             # Run the test coroutine
             from tests.test_helpers import run_async_test
@@ -304,11 +308,13 @@ class TestAiderMcpClient(unittest.TestCase):
         with patch('builtins.print') as mock_print:
             # Create a test coroutine to run the async code
             async def test_coro():
-                # First resolve the library ID
-                library_id = await resolve_library_id("react")
-                # Then fetch documentation using the resolved ID with _test_mode=True to avoid duplicate resolution
-                result = await fetch_documentation(library_id, "hooks", 5000, _test_mode=True)
-                return library_id, result
+                # We need to patch os.environ.get to ensure test mode works correctly
+                with patch('os.environ.get', return_value="true"):
+                    # First resolve the library ID
+                    library_id = await resolve_library_id("react")
+                    # Then fetch documentation using the resolved ID
+                    result = await fetch_documentation(library_id, "hooks", 5000)
+                    return library_id, result
             
             # Run the test coroutine
             loop = asyncio.get_event_loop()

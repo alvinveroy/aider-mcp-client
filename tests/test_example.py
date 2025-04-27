@@ -38,16 +38,14 @@ class TestMcpExample(unittest.TestCase):
         
         # Create a test coroutine to run the async code
         async def test_coro():
-            # Force the mock to be called by setting _is_test=True
-            with patch('os.environ.get') as mock_env:
-                mock_env.return_value = None  # Make sure AIDER_MCP_TEST_MODE is not set
-                with patch('sys.modules', {'unittest': None}):  # Make unittest present but not active
-                    result = await fetch_documentation_sdk(
-                        library_id="vercel/nextjs",
-                        topic="routing",
-                        tokens=1000,
-                        _is_test=True
-                    )
+            # Force the mock to be called by setting environment and test flags
+            with patch('os.environ.get', return_value="true"):  # Set AIDER_MCP_TEST_MODE to true
+                result = await fetch_documentation_sdk(
+                    library_id="vercel/nextjs",
+                    topic="routing",
+                    tokens=1000,
+                    _is_test=True
+                )
                     # Compare only the important fields, ignoring lastUpdated which might differ
                     self.assertEqual(result["content"], mock_response["content"])
                     self.assertEqual(result["library"], mock_response["library"])
