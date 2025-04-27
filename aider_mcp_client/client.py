@@ -218,13 +218,20 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
         # Check for errors
         stderr = process.stderr.read()
         if stderr:
-            logger.error(f"Server error: {stderr}")
+            # Ignore the startup message which is not an error
+            if "Context7 Documentation MCP Server running on stdio" in stderr:
+                logger.info(f"Server startup message: {stderr.strip()}")
+            else:
+                logger.error(f"Server error: {stderr}")
 
         # Return the last valid JSON response
         if output:
             return output[-1]
         else:
             logger.error("No valid response received")
+            # Check if we only got the startup message but no actual errors
+            if stderr and "Context7 Documentation MCP Server running on stdio" in stderr and not any(other_error for other_error in stderr.splitlines() if "Context7 Documentation MCP Server running on stdio" not in other_error):
+                logger.warning("Only received startup message. The server might be working but not producing output. Check your request parameters.")
             return None
 
     except Exception as e:
