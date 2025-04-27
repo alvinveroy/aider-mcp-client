@@ -29,8 +29,8 @@ dependencies = [
 ]
 
 [project.scripts]
-aider-mcp-client = "aider_mcp_client.client:async_main"
-aider_mcp_client = "aider_mcp_client.client:async_main"
+aider-mcp-client = "aider_mcp_client.client:main"
+aider_mcp_client = "aider_mcp_client.client:main"
 
 [project.urls]
 Homepage = "https://github.com/alvinveroy/aider-mcp-client"
