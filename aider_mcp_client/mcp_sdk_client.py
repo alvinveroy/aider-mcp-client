@@ -129,6 +129,12 @@ async def call_mcp_tool(
                             elif isinstance(result.result, str) and "/" in result.result:
                                 logger.debug(f"Result appears to be a library ID: {result.result}")
                                 return result.result
+                        
+                        # For documentation fetching, handle the result
+                        elif tool_name == "get-library-docs":
+                            logger.debug(f"Processing get-library-docs result")
+                            # Return the result directly for further processing
+                            return result
                     
                     # Return the result as is
                     return result
@@ -153,7 +159,7 @@ async def fetch_documentation_sdk(
     tokens: int = 5000,
     command: str = "npx",
     args: List[str] = ["-y", "@upstash/context7-mcp@latest"],
-    timeout: int = 30
+    timeout: int = 60  # Increased timeout for documentation fetching
 ) -> Optional[Dict[str, Any]]:
     """
     Fetch documentation using the MCP Python SDK.
@@ -181,16 +187,66 @@ async def fetch_documentation_sdk(
     }
     
     try:
-        result = await call_mcp_tool(
+        # First check if the server is responsive
+        logger.debug(f"Checking connection to MCP server before fetching documentation")
+        server_params = StdioServerParameters(
             command=command,
             args=args,
-            tool_name="get-library-docs",
-            tool_args=tool_args,
-            timeout=timeout
+            env=None,
         )
+        
+        # Try to connect and initialize first
+        try:
+            async with stdio_client(server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    # Initialize the connection
+                    init_result = await session.initialize()
+                    logger.debug(f"Connected to MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
+                    
+                    # List available tools to verify the tool exists
+                    tools = await session.list_tools()
+                    available_tools = [tool.name for tool in tools.tools]
+                    logger.debug(f"Available tools: {available_tools}")
+                    
+                    # Check if get-library-docs is available
+                    if "get-library-docs" not in available_tools:
+                        logger.error(f"Tool 'get-library-docs' not found. Available tools: {available_tools}")
+                        # Try alternative tool names
+                        alt_tool_name = None
+                        for tool_name in available_tools:
+                            if "docs" in tool_name.lower() or "documentation" in tool_name.lower():
+                                alt_tool_name = tool_name
+                                logger.info(f"Found alternative documentation tool: {alt_tool_name}")
+                                break
+                        
+                        if alt_tool_name:
+                            logger.info(f"Using alternative tool: {alt_tool_name}")
+                            result = await call_mcp_tool(
+                                command=command,
+                                args=args,
+                                tool_name=alt_tool_name,
+                                tool_args=tool_args,
+                                timeout=timeout
+                            )
+                        else:
+                            logger.error("No suitable documentation tool found")
+                            return None
+                    else:
+                        # Call the tool with the standard name
+                        result = await call_mcp_tool(
+                            command=command,
+                            args=args,
+                            tool_name="get-library-docs",
+                            tool_args=tool_args,
+                            timeout=timeout
+                        )
+        except Exception as conn_error:
+            logger.error(f"Error connecting to MCP server: {conn_error}")
+            return None
         
         if not result:
             logger.warning(f"No documentation returned for library ID: {library_id}")
+            # Try direct MCP communication as fallback
             return None
             
         # Handle CallToolResult type from MCP SDK

@@ -544,13 +544,17 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         try:
             from aider_mcp_client.mcp_sdk_client import fetch_documentation_sdk
             logger.info(f"Using MCP SDK to fetch documentation for '{library_id}'")
+            
+            # Use a longer timeout for documentation fetching
+            sdk_timeout = max(timeout, 60)  # At least 60 seconds for documentation
+            
             result = await fetch_documentation_sdk(
                 library_id=library_id,
                 topic=topic,
                 tokens=tokens,
                 command=command,
                 args=args,
-                timeout=timeout
+                timeout=sdk_timeout
             )
             if result:
                 return result
@@ -568,12 +572,15 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
             "tokens": max(tokens, 5000)  # Ensure minimum of 5000 tokens
         }
     }
+    
+    # Use a longer timeout for documentation fetching
+    doc_timeout = max(timeout, 60)  # At least 60 seconds for documentation
 
     # Communicate with the server
     logger.info(f"Fetching documentation for '{library_id}'{' on topic ' + topic if topic else ''}")
     
     try:
-        response = await communicate_with_mcp_server(command, args, request_data, timeout)
+        response = await communicate_with_mcp_server(command, args, request_data, doc_timeout)
         
         if not response:
             logger.error("No valid response received from the server")
