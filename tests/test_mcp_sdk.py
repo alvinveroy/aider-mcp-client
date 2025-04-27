@@ -88,8 +88,12 @@ class TestMcpSdkIntegration(unittest.TestCase):
     
     @patch('mcp.client.stdio.stdio_client')
     @patch('mcp.ClientSession')
-    def test_mcp_sdk_connection(self, mock_client_session, mock_stdio_client):
-        """Test connection to MCP server using the SDK"""
+    def test_mcp_sdk_connection(
+        self,
+        mock_client_session,
+        mock_stdio_client
+    ):
+        """Test connection to MCP server using the SDK."""
         # Mock the read and write streams
         mock_read = AsyncMock()
         mock_write = AsyncMock()

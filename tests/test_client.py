@@ -157,8 +157,12 @@ class TestAiderMcpClient(unittest.TestCase):
 
     @patch('aider_mcp_client.client.fetch_documentation_sdk')
     @patch('aider_mcp_client.client.load_config')
-    def test_fetch_documentation_without_resolution(self, mock_load_config, mock_fetch_sdk):
-        """Test fetching documentation without library ID resolution"""
+    def test_fetch_documentation_without_resolution(
+        self,
+        mock_load_config,
+        mock_fetch_sdk
+    ):
+        """Test fetching documentation without library ID resolution."""
         # Mock the config
         mock_load_config.return_value = self.test_config
         

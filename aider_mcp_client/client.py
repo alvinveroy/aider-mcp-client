@@ -82,8 +82,25 @@ def load_config():
     return default_config
 
 
-async def communicate_with_mcp_server(command, args, request_data, timeout=30, debug_output=False):
-    """Communicate with an MCP server via stdio using the MCP protocol."""
+async def communicate_with_mcp_server(
+    command,
+    args,
+    request_data,
+    timeout=30,
+    debug_output=False
+):
+    """Communicate with an MCP server via stdio using the MCP protocol.
+    
+    Args:
+        command: Command to run MCP server
+        args: Arguments for command
+        request_data: Data to send to server
+        timeout: Timeout in seconds
+        debug_output: Whether to show debug output
+        
+    Returns:
+        Response from server or None if failed
+    """
     # For test mode, return mock data directly
     # In test environments, we need to allow the mocks to be called
     # but avoid actual subprocess calls
@@ -94,9 +111,11 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
     import sys
     
     # Define test mode flag for reuse
-    is_test_mode = (os.environ.get("AIDER_MCP_TEST_MODE") == "true"
-                    or 'unittest' in sys.modules
-                    or 'pytest' in sys.modules)
+    is_test_mode = (
+        os.environ.get("AIDER_MCP_TEST_MODE") == "true" or
+        'unittest' in sys.modules or
+        'pytest' in sys.modules
+    )
     
     if is_test_mode:
         logger.debug("Test mode: Preparing mock data")
@@ -148,8 +167,11 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
     try:
         # Start the MCP server process with security checks
         # Validate command and args to prevent command injection
-        if not isinstance(command, str) or any(not isinstance(arg, str) for arg in args):
-            logger.error("Invalid command or arguments type - potential injection attempt")
+        if (not isinstance(command, str) or 
+                any(not isinstance(arg, str) for arg in args)):
+            logger.error(
+                "Invalid command or arguments type - potential injection attempt"
+            )
             return None
             
         # Log the command being executed

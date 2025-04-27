@@ -77,6 +77,20 @@ async def call_mcp_tool(
     new_event_loop: bool = False,
     _is_test: bool = False
 ) -> Optional[Any]:
+    """Call a tool on an MCP server using the MCP Python SDK.
+    
+    Args:
+        command: Command to run MCP server
+        args: Arguments for command
+        tool_name: Name of tool to call
+        tool_args: Arguments for tool
+        timeout: Timeout in seconds
+        new_event_loop: Whether to create new event loop
+        _is_test: Whether in test mode
+        
+    Returns:
+        Tool result or None if call failed
+    """
     """
     Call a tool on an MCP server using the MCP Python SDK.
     
