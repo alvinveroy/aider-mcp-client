@@ -621,21 +621,43 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         # Always print the documentation to console
         # Print the actual documentation content, not just the metadata
         if isinstance(response, dict) and "snippets" in response and response["snippets"]:
-            print("\n=== Documentation for", library_id, "===\n")
+            # Log documentation header
+            doc_header = f"\n=== Documentation for {library_id} ===\n"
+            print(doc_header)
+            logger.info(doc_header)
+            
             for i, snippet in enumerate(response["snippets"]):
-                print(f"\n--- Snippet {i+1} ---")
+                # Log snippet header
+                snippet_header = f"\n--- Snippet {i+1} ---"
+                print(snippet_header)
+                logger.info(snippet_header)
+                
                 if isinstance(snippet, dict):
                     if "title" in snippet:
-                        print(f"Title: {snippet['title']}")
+                        title_line = f"Title: {snippet['title']}"
+                        print(title_line)
+                        logger.info(title_line)
+                    
                     if "content" in snippet:
-                        print(f"\n{snippet['content']}\n")
+                        content = f"\n{snippet['content']}\n"
+                        print(content)
+                        # Log content with proper formatting
+                        for line in snippet['content'].split('\n'):
+                            logger.info(line)
                 else:
                     print(snippet)
-            print(f"\nTotal Tokens: {response.get('totalTokens', 0)}")
+                    logger.info(str(snippet))
+            
+            # Log token count
+            token_info = f"\nTotal Tokens: {response.get('totalTokens', 0)}"
+            print(token_info)
+            logger.info(token_info)
         else:
             # Fallback to printing the full JSON if snippets not found
             formatted_output = json.dumps(aider_output, indent=2, ensure_ascii=False)
             print(formatted_output)
+            logger.info("Documentation output (JSON format):")
+            logger.info(formatted_output)
         
         # Save documentation to a JSON file
         output_file = f"{library_id.replace('/', '_')}_docs.json"
