@@ -79,7 +79,7 @@ def load_config():
     logger.info("No config file found. Using default Context7 server configuration.")
     return default_config
 
-async def communicate_with_mcp_server(command, args, request_data, timeout=30):
+async def communicate_with_mcp_server(command, args, request_data, timeout=30, debug_output=False):
     """Communicate with an MCP server via stdio using the MCP protocol."""
     # Check if we should use the MCP SDK
     config = load_config()
@@ -251,7 +251,7 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30):
                                     # Check for completion based on response structure
                                     if isinstance(json_data, dict) and ('library' in json_data or 'result' in json_data):
                                         logger.debug("Received complete response")
-                                        break
+                                        # Don't break here, we need to collect the full response
                             except json.JSONDecodeError as e:
                                 logger.debug(f"JSON decode error: {e} in: {json_str[:100]}...")
                                 # Skip this line and continue with the next one
@@ -289,7 +289,7 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30):
                             # Check for completion based on response structure
                             if isinstance(json_data, dict) and ('library' in json_data or 'result' in json_data):
                                 logger.debug("Received complete response")
-                                break
+                                # Don't break here, we need to collect the full response
                         except json.JSONDecodeError:
                             logger.debug(f"Received non-JSON line: {line}")
                             continue
@@ -362,6 +362,20 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30):
             if 'id' in msg and msg['id'] == request_id:
                 response = msg
                 break
+                
+        # If we didn't find a response with matching ID, look for any response with library data
+        if not response:
+            for msg in output:
+                if isinstance(msg, dict) and ('library' in msg or 'snippets' in msg):
+                    response = msg
+                    break
+                    
+        # Debug output if requested
+        if debug_output and not response:
+            print("\nDebug: No valid response found in output.")
+            print(f"Output messages: {len(output)}")
+            for i, msg in enumerate(output):
+                print(f"Message {i}: {type(msg)} - {str(msg)[:100]}...")
                 
         if response:
             # Extract the result from the MCP response
@@ -587,7 +601,7 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
     logger.info(f"Fetching documentation for '{library_id}'{' on topic ' + topic if topic else ''}")
     
     try:
-        response = await communicate_with_mcp_server(command, args, request_data, doc_timeout)
+        response = await communicate_with_mcp_server(command, args, request_data, doc_timeout, debug_output=True)
         
         if not response:
             logger.error("No valid response received from the server")
@@ -795,10 +809,13 @@ async def async_main():
                     logger.error(f"Error saving documentation to specified file: {str(e)}")
             
             # Now display any buffered documentation after MCP connection has ended
-            if output_buffer and len(output_buffer) > 0:
-                for doc_data in output_buffer:
-                    response, lib_id = doc_data
-                    display_documentation(response, lib_id)
+            if output_buffer is not None:
+                if len(output_buffer) > 0:
+                    for doc_data in output_buffer:
+                        response, lib_id = doc_data
+                        display_documentation(response, lib_id)
+                else:
+                    print("\nNo documentation was received from the server.")
         
         elif args.command == "resolve":
             # Use command-line timeout if provided
