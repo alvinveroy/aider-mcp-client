@@ -619,8 +619,23 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         }
 
         # Always print the documentation to console
-        formatted_output = json.dumps(aider_output, indent=2, ensure_ascii=False)
-        print(formatted_output)
+        # Print the actual documentation content, not just the metadata
+        if isinstance(response, dict) and "snippets" in response and response["snippets"]:
+            print("\n=== Documentation for", library_id, "===\n")
+            for i, snippet in enumerate(response["snippets"]):
+                print(f"\n--- Snippet {i+1} ---")
+                if isinstance(snippet, dict):
+                    if "title" in snippet:
+                        print(f"Title: {snippet['title']}")
+                    if "content" in snippet:
+                        print(f"\n{snippet['content']}\n")
+                else:
+                    print(snippet)
+            print(f"\nTotal Tokens: {response.get('totalTokens', 0)}")
+        else:
+            # Fallback to printing the full JSON if snippets not found
+            formatted_output = json.dumps(aider_output, indent=2, ensure_ascii=False)
+            print(formatted_output)
         
         # Save documentation to a JSON file
         output_file = f"{library_id.replace('/', '_')}_docs.json"
