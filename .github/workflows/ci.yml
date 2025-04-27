@@ -68,6 +68,13 @@ jobs:
         run: |
           python -m pip install build
           python -m build
+          ls -la dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-package
+          path: dist/*
 
       - name: Bump version and create tag
         id: bump-version
@@ -105,7 +112,14 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: python-package
+          path: dist
+
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_KEY }}
+          packages_dir: dist/
