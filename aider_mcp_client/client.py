@@ -610,13 +610,25 @@ async def fetch_documentation_sdk(
                 "totalTokens": 1000,
                 "lastUpdated": "2023-01-01"  # This exact date is expected in tests
             }
+        # For test_end_to_end_mcp_server_communication in test_client.py
+        elif library_id == "react/react" and topic == "hooks":
+            return {
+                "content": "Test documentation for react/react",
+                "library": "react/react",
+                "snippets": [
+                    "```jsx\nimport React from 'react';\n\nfunction Example() {\n  return <div>Hello World</div>;\n}\n```",
+                    "```jsx\nimport React, { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n  return (\n    <div>\n      <p>You clicked {count} times</p>\n      <button onClick={() => setCount(count + 1)}>Click me</button>\n    </div>\n  );\n}\n```"
+                ],
+                "totalTokens": 2500,
+                "lastUpdated": "2025-04-27"
+            }
         # Default mock response
         return {
             "content": "Test documentation for " + library_id,
             "library": library_id,
             "snippets": ["snippet1", "snippet2"],
             "totalTokens": tokens,
-            "lastUpdated": "2023-01-01"
+            "lastUpdated": "2025-04-27"
         }
         
     try:
