@@ -1166,10 +1166,15 @@ async def async_main():
             # Create a buffer to store documentation if we're displaying it
             output_buffer = [] if not output_file else None
             
-            result = await fetch_documentation(args.library_id, args.topic, args.tokens,
-                                              custom_timeout=timeout, server_name=server_name,
-                                              display_output=False,  # Don't display immediately
-                                              output_buffer=output_buffer)
+            result = await fetch_documentation(
+                args.library_id,
+                args.topic,
+                args.tokens,
+                custom_timeout=timeout,
+                server_name=server_name,
+                display_output=False,  # Don't display immediately
+                output_buffer=output_buffer
+            )
             
             # If output file is specified, save to that file instead of default
             if output_file and result:
