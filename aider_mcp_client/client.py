@@ -79,6 +79,24 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
             encoding='utf-8'
         )
 
+        # Wait for server to initialize (check stderr for startup message)
+        start_time = time.time()
+        server_ready = False
+        
+        while time.time() - start_time < 5:  # Wait up to 5 seconds for server to start
+            # Check if there's any stderr output indicating the server has started
+            if process.stderr.readable():
+                stderr_line = process.stderr.readline()
+                if stderr_line:
+                    if "Context7 Documentation MCP Server running on stdio" in stderr_line:
+                        logger.info(f"Server startup message detected: {stderr_line.strip()}")
+                        server_ready = True
+                        break
+            time.sleep(0.1)
+        
+        if not server_ready:
+            logger.warning("No server startup message detected, proceeding anyway")
+        
         # Send JSON request to the server's stdin
         request_json = json.dumps(request_data)
         logger.debug(f"Sending request: {request_json}")
@@ -215,12 +233,12 @@ def communicate_with_mcp_server(command, args, request_data, timeout=30):
             logger.warning("Process did not terminate gracefully, killing")
             process.kill()
 
-        # Check for errors
+        # Check for any remaining errors in stderr
         stderr = process.stderr.read()
         if stderr:
             # Ignore the startup message which is not an error
             if "Context7 Documentation MCP Server running on stdio" in stderr:
-                logger.info(f"Server startup message: {stderr.strip()}")
+                logger.debug(f"Server startup message (already handled): {stderr.strip()}")
             else:
                 logger.error(f"Server error: {stderr}")
 
