@@ -7,7 +7,10 @@ import os
 import asyncio
 from pathlib import Path
 import logging
+from typing import Dict, Any, Optional, Tuple, List, Union
 from aider_mcp_client import __version__
+from mcp import ClientSession, StdioServerParameters, types
+from mcp.client.stdio import stdio_client
 
 # Configure logging
 logging.basicConfig(
@@ -71,6 +74,21 @@ def load_config():
 
 async def communicate_with_mcp_server(command, args, request_data, timeout=30):
     """Communicate with an MCP server via stdio using the MCP protocol."""
+    # Check if we should use the MCP SDK
+    config = load_config()
+    use_sdk = False
+    
+    for server_name, server_config in config.get("mcpServers", {}).items():
+        if (server_config.get("command") == command and 
+            server_config.get("args") == args and 
+            server_config.get("sdk", False)):
+            use_sdk = True
+            logger.debug(f"Using MCP SDK for server {server_name}")
+            break
+    
+    if use_sdk:
+        return await communicate_with_mcp_sdk(command, args, request_data, timeout)
+    
     try:
         # Start the MCP server process
         logger.debug(f"Starting MCP server process: {command} {' '.join(args)}")
@@ -349,6 +367,49 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30):
         logger.error(f"Error communicating with MCP server: {e}")
         return None
 
+async def communicate_with_mcp_sdk(command, args, request_data, timeout=30):
+    """
+    Communicate with the MCP server using the MCP SDK.
+    
+    Args:
+        command (str): The command to run.
+        args (list): The arguments to pass to the command.
+        request_data (dict): The data to send to the server.
+        timeout (int): The timeout in seconds.
+        
+    Returns:
+        dict: The response from the server.
+    """
+    logger.debug(f"Communicating with MCP server using SDK: {command} {args}")
+    logger.debug(f"Request data: {request_data}")
+    
+    try:
+        # Create server parameters
+        server_params = StdioServerParameters(
+            command=command,
+            args=args,
+            env=None,
+        )
+        
+        # Connect to the server
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                # Initialize the connection
+                await session.initialize()
+                
+                # Determine which tool to call and with what arguments
+                tool_name = request_data.get("tool")
+                tool_args = request_data.get("args", {})
+                
+                # Call the tool
+                result = await session.call_tool(tool_name, arguments=tool_args)
+                logger.debug(f"SDK Response: {result}")
+                
+                return result
+    except Exception as e:
+        logger.error(f"Error communicating with MCP server using SDK: {e}")
+        raise
+
 async def resolve_library_id(library_name, custom_timeout=None, server_name="context7"):
     """Resolve a general library name to a Context7-compatible library ID."""
     config = load_config()
@@ -375,13 +436,16 @@ async def resolve_library_id(library_name, custom_timeout=None, server_name="con
         if not response:
             logger.error(f"No response received when resolving library ID for '{library_name}'")
             return None
-            
-        if 'result' not in response:
+        
+        # Handle different response formats (SDK vs direct)
+        if 'result' in response:
+            return response.get('result')
+        elif 'libraryId' in response:
+            return response.get('libraryId')
+        else:
             logger.error(f"Invalid response format when resolving library ID for '{library_name}'")
             logger.debug(f"Response: {response}")
             return None
-        
-        return response.get('result')
     
     except Exception as e:
         logger.error(f"Error resolving library ID for '{library_name}': {str(e)}")
@@ -431,6 +495,16 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         if not response:
             logger.error("No valid response received from the server")
             return None
+
+        # Handle different response formats (SDK vs direct)
+        if "library" not in response and "documentation" in response:
+            # Format SDK response to match the expected format
+            response = {
+                "library": library_id,
+                "snippets": response.get("documentation", []),
+                "totalTokens": response.get("tokenCount", tokens),
+                "lastUpdated": response.get("lastUpdated", "")
+            }
 
         # Format output for Aider compatibility
         aider_output = {
