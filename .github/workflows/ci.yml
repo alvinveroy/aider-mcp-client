@@ -81,7 +81,7 @@ jobs:
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          custom_version: |
+          custom_tag: |
             if [ "${{ github.event_name }}" = "push" ]; then
               git fetch --tags
               latest_tag=$(git describe --tags --abbrev=0)
@@ -122,4 +122,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           # No password needed when using trusted publishing
-          packages_dir: dist/
+          packages-dir: dist/
