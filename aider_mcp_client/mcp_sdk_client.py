@@ -812,7 +812,7 @@ async def resolve_library_id_sdk(
         
         # Handle CallToolResult type from MCP SDK
         if isinstance(result, types.CallToolResult):
-            logger.debug(f"Processing CallToolResult: {result}")
+            logger.debug("Processing CallToolResult: %s", result)
             
             # Extract the result field
             result_data = result.result
