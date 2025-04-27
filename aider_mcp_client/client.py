@@ -358,24 +358,36 @@ async def communicate_with_mcp_server(command, args, request_data, timeout=30, d
 
         # Find the response for our request
         response = None
+        
+        # First try to find a response with the matching request ID
         for msg in output:
             if 'id' in msg and msg['id'] == request_id:
                 response = msg
                 break
-                
+        
         # If we didn't find a response with matching ID, look for any response with library data
         if not response:
             for msg in output:
-                if isinstance(msg, dict) and ('library' in msg or 'snippets' in msg):
-                    response = msg
-                    break
-                    
+                if isinstance(msg, dict):
+                    # Check for library data in various formats
+                    if 'library' in msg or 'snippets' in msg:
+                        response = msg
+                        break
+                    elif 'result' in msg and isinstance(msg['result'], dict):
+                        if 'library' in msg['result'] or 'snippets' in msg['result']:
+                            response = msg
+                            break
+        
         # Debug output if requested
-        if debug_output and not response:
-            print("\nDebug: No valid response found in output.")
+        if debug_output:
+            print("\nDebug: MCP Server Response Analysis")
             print(f"Output messages: {len(output)}")
             for i, msg in enumerate(output):
-                print(f"Message {i}: {type(msg)} - {str(msg)[:100]}...")
+                if isinstance(msg, dict):
+                    keys = list(msg.keys())
+                    print(f"Message {i}: {type(msg)} - Keys: {keys}")
+                else:
+                    print(f"Message {i}: {type(msg)} - {str(msg)[:100]}...")
                 
         if response:
             # Extract the result from the MCP response
@@ -601,7 +613,11 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
     logger.info(f"Fetching documentation for '{library_id}'{' on topic ' + topic if topic else ''}")
     
     try:
+        # Set debug_output to True to help diagnose issues
         response = await communicate_with_mcp_server(command, args, request_data, doc_timeout, debug_output=True)
+        
+        # Print raw response for debugging
+        logger.debug(f"Response from MCP server: {json.dumps(response) if response else 'None'}")
         
         if not response:
             logger.error("No valid response received from the server")
@@ -643,7 +659,10 @@ async def fetch_documentation(library_id, topic="", tokens=5000, custom_timeout=
         # Otherwise display immediately
         if output_buffer is not None and isinstance(output_buffer, list):
             # Store the documentation in the buffer for later display
-            output_buffer.append((response, library_id))
+            if response and (isinstance(response, dict) and 
+                            ('snippets' in response or 
+                             ('result' in response and isinstance(response['result'], dict)))):
+                output_buffer.append((response, library_id))
         elif display_output:
             # Display immediately
             display_documentation(response, library_id)
@@ -815,7 +834,11 @@ async def async_main():
                         response, lib_id = doc_data
                         display_documentation(response, lib_id)
                 else:
-                    print("\nNo documentation was received from the server.")
+                    # If we have a result but nothing in the buffer, display the result directly
+                    if result:
+                        display_documentation(result, args.library_id)
+                    else:
+                        print("\nNo documentation was received from the server.")
         
         elif args.command == "resolve":
             # Use command-line timeout if provided
