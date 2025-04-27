@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 # The actual configuration is in pyproject.toml
 setup(
     name="aider-mcp-client",
-    version="0.1.1",
+    version="0.1.3",
     packages=find_packages(),
     include_package_data=True,
     install_requires=["requests>=2.25.0"],
