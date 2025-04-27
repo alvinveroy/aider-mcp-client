@@ -662,5 +662,9 @@ async def async_main():
             traceback.print_exc()
         sys.exit(1)
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the CLI."""
     asyncio.run(async_main())
+
+if __name__ == "__main__":
+    main()
