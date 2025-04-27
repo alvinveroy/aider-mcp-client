@@ -135,6 +135,12 @@ For test uploads, use the TestPyPI repository:
 python -m twine upload --repository testpypi dist/*
 ```
 
+You can install from TestPyPI with:
+
+```bash
+pip install --index-url https://test.pypi.org/simple/ aider-mcp-client
+```
+
 ### Contributing
 1. Fork the repository
 2. Create a feature branch
