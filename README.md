@@ -131,31 +131,6 @@ python -m unittest discover tests
 - `mcp_client/config.json`: Default configuration template
 - `tests/`: Unit tests
 
-### Publishing to PyPI
-
-To publish updates to PyPI:
-
-```bash
-# Install build tools
-pip install --upgrade build twine
-
-# Build the package
-python -m build
-
-# Upload to PyPI
-python -m twine upload dist/*
-```
-
-For test uploads, use the TestPyPI repository:
-```bash
-python -m twine upload --repository testpypi dist/*
-```
-
-You can install from TestPyPI with:
-
-```bash
-pip install --index-url https://test.pypi.org/simple/ aider-mcp-client
-```
 
 ### Contributing
 1. Fork the repository
