@@ -2,14 +2,16 @@ import unittest
 import json
 import os
 import tempfile
-from unittest.mock import patch, MagicMock
+import asyncio
+from unittest.mock import patch, MagicMock, AsyncMock
 from pathlib import Path
 from aider_mcp_client.client import (
     load_config, 
     communicate_with_mcp_server, 
     resolve_library_id, 
     fetch_documentation,
-    list_supported_libraries
+    list_supported_libraries,
+    async_main
 )
 
 class TestAiderMcpClient(unittest.TestCase):
@@ -242,6 +244,124 @@ class TestAiderMcpClient(unittest.TestCase):
         list_supported_libraries()
         mock_print.assert_any_call("Fetching list of supported libraries from Context7...")
         mock_print.assert_any_call("This feature is not yet implemented. Please check https://context7.com for supported libraries.")
+    
+    @patch('aider_mcp_client.client.communicate_with_mcp_server')
+    @patch('aider_mcp_client.client.load_config')
+    def test_end_to_end_mcp_server_communication(self, mock_load_config, mock_communicate):
+        """Test end-to-end communication with MCP server"""
+        # Mock the config
+        mock_load_config.return_value = self.test_config
+        
+        # Mock the communicate_with_mcp_server response for library resolution
+        mock_communicate.side_effect = [
+            # First call - resolve library ID
+            {"result": "react/react"},
+            # Second call - fetch documentation
+            {
+                "library": "react/react",
+                "snippets": [
+                    "```jsx\nimport React from 'react';\n\nfunction Example() {\n  return <div>Hello World</div>;\n}\n```",
+                    "```jsx\nimport React, { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n  return (\n    <div>\n      <p>You clicked {count} times</p>\n      <button onClick={() => setCount(count + 1)}>Click me</button>\n    </div>\n  );\n}\n```"
+                ],
+                "totalTokens": 2500,
+                "lastUpdated": "2025-04-27"
+            }
+        ]
+        
+        # Test the full flow: resolve library ID and then fetch documentation
+        with patch('builtins.print') as mock_print:
+            # First resolve the library ID
+            library_id = resolve_library_id("react")
+            self.assertEqual(library_id, "react/react")
+            
+            # Then fetch documentation using the resolved ID
+            result = fetch_documentation(library_id, "hooks", 5000)
+            
+            # Verify the results
+            self.assertEqual(result["library"], "react/react")
+            self.assertEqual(len(result["snippets"]), 2)
+            self.assertEqual(result["totalTokens"], 2500)
+            self.assertEqual(result["lastUpdated"], "2025-04-27")
+            
+            # Verify the correct calls were made to communicate_with_mcp_server
+            expected_calls = [
+                # First call for resolving library ID
+                unittest.mock.call(
+                    "test_command",
+                    ["test_arg1", "test_arg2"],
+                    {
+                        "tool": "resolve-library-id",
+                        "args": {
+                            "libraryName": "react"
+                        }
+                    },
+                    15
+                ),
+                # Second call for fetching documentation
+                unittest.mock.call(
+                    "test_command",
+                    ["test_arg1", "test_arg2"],
+                    {
+                        "tool": "get-library-docs",
+                        "args": {
+                            "context7CompatibleLibraryID": "react/react",
+                            "topic": "hooks",
+                            "tokens": 5000
+                        }
+                    },
+                    15
+                )
+            ]
+            
+            mock_communicate.assert_has_calls(expected_calls)
+            
+            # Verify that appropriate messages were printed
+            mock_print.assert_any_call("Fetching documentation for react/react on topic: hooks")
+
+    @patch('asyncio.run')
+    @patch('aider_mcp_client.client.resolve_library_id')
+    @patch('aider_mcp_client.client.fetch_documentation')
+    def test_async_main_integration(self, mock_fetch_docs, mock_resolve_id, mock_asyncio_run):
+        """Test the async_main function that integrates all components"""
+        # Mock the resolve_library_id response
+        mock_resolve_id.return_value = "react/react"
+        
+        # Mock the fetch_documentation response
+        mock_fetch_docs.return_value = {
+            "library": "react/react",
+            "snippets": [
+                "```jsx\nimport React from 'react';\n\nfunction Example() {\n  return <div>Hello World</div>;\n}\n```"
+            ],
+            "totalTokens": 1000,
+            "lastUpdated": "2025-04-27"
+        }
+        
+        # Set up command line arguments
+        test_args = ["script_name", "react", "--topic", "components", "--tokens", "3000"]
+        
+        with patch('sys.argv', test_args):
+            with patch('builtins.print') as mock_print:
+                # Call async_main directly instead of through asyncio.run
+                # which is already mocked
+                mock_asyncio_run.side_effect = lambda coro: None
+                
+                # Run the main function
+                import sys
+                old_argv = sys.argv
+                sys.argv = test_args
+                try:
+                    async_main()
+                finally:
+                    sys.argv = old_argv
+                
+                # Verify that resolve_library_id was called with correct arguments
+                mock_resolve_id.assert_called_once_with("react")
+                
+                # Verify that fetch_documentation was called with correct arguments
+                mock_fetch_docs.assert_called_once_with("react/react", "components", 3000)
+                
+                # Verify that asyncio.run was called
+                mock_asyncio_run.assert_called_once()
 
 if __name__ == "__main__":
     unittest.main()
