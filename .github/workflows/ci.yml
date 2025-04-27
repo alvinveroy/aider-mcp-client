@@ -2,7 +2,7 @@ name: CI
 
 permissions:
   contents: write  # Required for creating/pushing tags
-  packages: write  # Required for PyPI publishing
+  id-token: write  # Required for OIDC authentication
 
 on: 
   push:
@@ -121,5 +121,5 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_KEY }}
+          # No password needed when using trusted publishing
           packages_dir: dist/
