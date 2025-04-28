@@ -9,7 +9,7 @@ version_scheme = "python-simplified-semver"
 local_scheme = "no-local-version"
 parse = """^
 (?P<major>[1-9]\d*|0)\.(?P<minor>[1-9]\d*|0)\.(?P<patch>[1-9]\d*|0)
-(\.dev(?P<dev>[1-9]\d*|0))?$
+(?:\.dev(?P<dev>[1-9]\d*|0))?$
 """
 
 [project]
