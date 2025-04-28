@@ -82,8 +82,10 @@ jobs:
           python -c "
           from setuptools_scm import get_version
           version = get_version()
-          if '.dev' in version and not version.endswith('.dev0'):
-              raise ValueError(f'Invalid dev version {version} - must end with .dev0')
+          # Check base version before any +gHASH suffix
+          base_version = version.split('+')[0]
+          if '.dev' in base_version and not base_version.endswith('.dev0'):
+              raise ValueError(f'Invalid dev version {version} - must have base version ending with .dev0')
           print(f'Version validation passed: {version}')
           "
 
