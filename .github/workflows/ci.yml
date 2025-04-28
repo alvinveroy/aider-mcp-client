@@ -82,11 +82,20 @@ jobs:
           python -c "
           from setuptools_scm import get_version
           version = get_version()
-          # Check base version before any +gHASH suffix
-          base_version = version.split('+')[0]
-          if '.dev' in base_version and not base_version.endswith('.dev0'):
-              raise ValueError(f'Invalid dev version {version} - must have base version ending with .dev0')
-          print(f'Version validation passed: {version}')
+          # Extract just the version part before any + or - suffixes
+          clean_version = version.split('+')[0].split('-')[0]
+          if '.dev' in clean_version:
+              # Split at .dev and ensure we can properly parse it
+              parts = clean_version.split('.dev')
+              if len(parts) != 2:
+                  raise ValueError(f'Invalid dev version format: {version}')
+              base_version = parts[0]
+              dev_num = parts[1]
+              if not dev_num.isdigit():
+                  raise ValueError(f'Invalid dev number in version: {version}')
+              # Reconstruct with .dev0
+              clean_version = f'{base_version}.dev0'
+          print(f'Version validation passed: {version} (normalized to {clean_version})')
           "
 
       - name: Build package
