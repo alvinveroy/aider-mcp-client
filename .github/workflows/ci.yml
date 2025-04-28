@@ -66,13 +66,15 @@ jobs:
 
       - name: Clean up and reset version tags
         run: |
-          # Delete any existing dev tags
+          # Delete any existing dev tags locally and remotely
           git tag -d $(git tag -l "v*dev*") || true
           git push origin --delete $(git tag -l "v*dev*") || true
-          # Reset to base version if needed
-          git tag -d v0.0.5 || true
-          git tag v0.0.5
-          git push origin v0.0.5
+          
+          # Only create v0.0.5 tag if it doesn't exist
+          if ! git rev-parse v0.0.5 >/dev/null 2>&1; then
+            git tag v0.0.5
+            git push origin v0.0.5
+          fi
 
       - name: Validate version
         run: |
