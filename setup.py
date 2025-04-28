@@ -8,11 +8,7 @@ setup(
         "write_to": "aider_mcp_client/_version.py",
         "version_scheme": "python-simplified-semver",
         "local_scheme": "no-local-version",
-        "fallback_version": "0.0.0",
-        "parse": """^
-(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)
-(?:\.dev(?P<dev>0|[1-9]\d*))?$
-"""
+        "fallback_version": "0.1.0"
     },
     setup_requires=["setuptools_scm[toml]>=8.0"],
     packages=find_packages(),
