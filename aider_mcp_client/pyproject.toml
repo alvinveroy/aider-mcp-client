@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 write_to = "aider_mcp_client/_version.py"
 write_to_template = "__version__ = '{version}'\n__version_tuple__ = {version_tuple}"
-version_scheme = "python-simplified-semver"
+version_scheme = "release-branch-semver"
 local_scheme = "no-local-version"
-parse = """^
-(?P<major>0|[1-9]\\d*)\\.(?P<minor>0|[1-9]\\d*)\\.(?P<patch>0|[1-9]\\d*)
-(?:\\.dev(?P<dev>0|[1-9]\\d*))?$
-"""
+fallback_version = "0.1.0"
+
+[tool.setuptools_scm.git]
+describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "*.*.*"]
 
 [project]
 name = "aider-mcp-client"
