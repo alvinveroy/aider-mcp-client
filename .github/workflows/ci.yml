@@ -99,7 +99,7 @@ jobs:
           VERSION=$(python -c "from importlib.metadata import version; print(version('aider-mcp-client'))")
           # Normalize dev version to .dev0 format
           if [[ "$VERSION" == *".dev"* ]]; then
-            BASE_VERSION=$(echo "$VERSION" | cut -d'.dev' -f1)
+            BASE_VERSION=$(echo "$VERSION" | awk -F'.dev' '{print $1}')
             VERSION="${BASE_VERSION}.dev0"
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
