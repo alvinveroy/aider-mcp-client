@@ -8,10 +8,8 @@ write_to_template = "__version__ = '{version}'\n__version_tuple__ = {version_tup
 version_scheme = "python-simplified-semver"
 local_scheme = "no-local-version"
 parse = """^
-(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)
-(?:
-    \.dev(?P<dev>0|[1-9]\d*)
-)?$
+(?P<major>[1-9]\d*|0)\.(?P<minor>[1-9]\d*|0)\.(?P<patch>[1-9]\d*|0)
+(\.dev(?P<dev>[1-9]\d*|0))?$
 """
 
 [project]
