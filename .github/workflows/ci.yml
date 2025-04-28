@@ -148,26 +148,31 @@ jobs:
           echo "Version detected: ${VERSION}"
 
       - name: Create Git tag
-        if: steps.version.outputs.is_release == 'true'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            github.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: `refs/tags/${{ steps.version.outputs.tag }}`,
-              sha: context.sha
-            })
+        id: create-tag
+        run: |
+          if [[ "${{ steps.version.outputs.is_release }}" == "true" ]]; then
+            TAG="v${{ steps.version.outputs.version }}"
+            RELEASE_TYPE="release"
+          else
+            TAG="v${{ steps.version.outputs.version }}"
+            RELEASE_TYPE="prerelease"
+          fi
+          
+          # Create lightweight tag
+          git tag $TAG || echo "Tag already exists"
+          git push origin $TAG || echo "Tag push failed"
+          
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
 
       - name: Create release
-        if: steps.version.outputs.is_release == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          name: Release ${{ steps.version.outputs.version }}
-          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.create-tag.outputs.tag }}
+          tag_name: ${{ steps.create-tag.outputs.tag }}
           generate_release_notes: true
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.create-tag.outputs.release_type == 'prerelease' }}
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
