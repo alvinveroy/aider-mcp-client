@@ -9,7 +9,10 @@ setup(
         "version_scheme": "python-simplified-semver",
         "local_scheme": "no-local-version",
         "fallback_version": "0.0.0",
-        "parse": r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:\.dev(?P<dev>0|[1-9]\d*))?$"
+        "parse": """^
+(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)
+(?:\.dev(?P<dev>0|[1-9]\d*))?$
+"""
     },
     setup_requires=["setuptools_scm[toml]>=8.0"],
     packages=find_packages(),
