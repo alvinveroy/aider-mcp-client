@@ -6,8 +6,9 @@ setup(
     name="aider-mcp-client",
     use_scm_version={
         "write_to": "aider_mcp_client/_version.py",
-        "version_scheme": "no-guess-dev",
-        "local_scheme": "no-local-version"
+        "version_scheme": "release-branch-semver",
+        "local_scheme": "node-and-date",
+        "fallback_version": "0.0.0"
     },
     setup_requires=["setuptools_scm[toml]>=8.0"],
     packages=find_packages(),

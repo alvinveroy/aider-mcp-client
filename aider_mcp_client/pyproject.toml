@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 write_to = "aider_mcp_client/_version.py"
-write_to_template = "__version__ = '{version}'"
-version_scheme = "no-guess-dev"
-local_scheme = "no-local-version"
+write_to_template = "__version__ = '{version}'\n__version_tuple__ = {version_tuple}"
+version_scheme = "release-branch-semver"
+local_scheme = "node-and-date"
 
 [project]
 name = "aider-mcp-client"
