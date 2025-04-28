@@ -124,21 +124,28 @@ jobs:
       - name: Get version from SCM
         id: version
         run: |
-          VERSION=$(python -c "from setuptools_scm import get_version; print(get_version())")
-          # Normalize dev version to .dev0 format
+          # Get clean version without local parts
+          VERSION=$(python -c "from setuptools_scm import get_version; print(get_version(version_scheme='release-branch-semver', local_scheme='no-local-version'))")
+          # Normalize version format
           if [[ "$VERSION" == *".dev"* ]]; then
-            BASE_VERSION=$(echo "$VERSION" | cut -d'.dev' -f1)
+            # For dev versions, ensure consistent format
+            BASE_VERSION=$(echo "$VERSION" | awk -F'[+.dev]' '{print $1"."$2"."$3}')
+            DEV_NUM=$(echo "$VERSION" | awk -F'.dev' '{print $2}' | cut -d'+' -f1)
             VERSION="${BASE_VERSION}.dev0"
+          else
+            # For release versions, clean any potential suffixes
+            VERSION=$(echo "$VERSION" | cut -d'+' -f1)
           fi
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
           # Only create tags for final releases (not dev versions)
           if [[ "$VERSION" != *".dev"* ]]; then
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
             echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
             echo "is_release=true" >> $GITHUB_OUTPUT
           else
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
             echo "is_release=false" >> $GITHUB_OUTPUT
           fi
+          echo "Version detected: ${VERSION}"
 
       - name: Create Git tag
         if: steps.version.outputs.is_release == 'true'
