@@ -1,15 +1,34 @@
-# Aider MCP Client
+# Aider MCP Client: Supercharge Your Coding with AI-Powered Documentation
 
-A Python client for interacting with MCP (Model Control Protocol) servers, with Aider integration support. This client primarily focuses on fetching documentation from Context7 MCP servers.
+A Python client that seamlessly integrates MCP (Model Control Protocol) with Aider, creating a powerful AI-assisted development workflow. Fetch precise documentation snippets directly into your coding sessions while efficiently managing token usage.
 
 [![PyPI version](https://badge.fury.io/py/aider-mcp-client.svg)](https://badge.fury.io/py/aider-mcp-client)
 
-## Features
+## Why Use MCP with Aider?
+
+- **Context-Aware Coding**: Get relevant documentation snippets injected directly into your AI coding sessions
+- **Token Efficiency**: Aider's smart token management ensures you get maximum context without wasting tokens
+- **Reduced Hallucinations**: Ground your AI coding in actual documentation rather than made-up examples
+- **Faster Development**: Eliminate context-switching between docs and code
+- **Precision Answers**: Get documentation tailored to your exact coding context
+
+## Key Features
 
 - Simple configuration via JSON
 - Command-line interface
 - Aider-compatible JSON output
 - Integration with Context7 MCP servers
+
+## Smart Token Management with Aider
+
+Aider was chosen as the foundation for this client because of its excellent token management capabilities:
+
+- **Automatic Token Optimization**: Aider intelligently manages context window size
+- **Prioritized Context**: Keeps the most relevant documentation in the prompt
+- **Documentation Chunking**: Breaks large docs into manageable pieces
+- **Session Awareness**: Maintains context across multiple queries
+
+This ensures you get the most value from your AI coding sessions without hitting token limits.
 
 ## Installation
 
@@ -67,32 +86,33 @@ options:
   --json                Force JSON output format
 ```
 
-### Example Commands
+### Example Workflows
 
+#### Basic Documentation Fetch
 ```bash
-# Show version information
-aider_mcp_client -v
+# Get React hooks documentation (automatically optimized for token usage)
+aider_mcp_client fetch react --topic "hooks"
 
-# Show help information
-aider_mcp_client --help
-
-# List all supported libraries
-aider_mcp_client list
-
-# Resolve a library name to a Context7-compatible ID
-aider_mcp_client resolve react
-
-# Fetch documentation for a specific library
-aider_mcp_client fetch vercel/nextjs
-
-# Fetch documentation with a specific topic and token limit
+# Get Next.js routing docs with 10k token budget
 aider_mcp_client fetch vercel/nextjs --topic "routing" --tokens 10000
+```
 
-# Use a specific server with JSON output
-aider_mcp_client fetch react --server context7 --json
+#### Integration with Aider
+```bash
+# Start an Aider session with React context
+aider --context $(aider_mcp_client fetch react --json)
+```
 
-# Enable verbose logging
-aider_mcp_client fetch react --verbose
+#### Advanced Usage
+```bash
+# Resolve library name to ID (useful for scripting)
+aider_mcp_client resolve next.js
+
+# Get docs in JSON format for processing
+aider_mcp_client fetch react --topic "state" --json
+
+# Debug connection issues
+aider_mcp_client fetch react --verbose --debug
 ```
 
 ## Configuration
